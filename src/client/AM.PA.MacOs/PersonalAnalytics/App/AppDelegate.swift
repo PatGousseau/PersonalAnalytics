@@ -152,12 +152,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSUserNotificationCenterDele
         // opening the preference window to show which trackers are working and which are missing permission
         showPreferencesIfTrackerDisabled()
         preferencesController.repositionWindow()
+        let documents = ["In Atlanta, police fired tear gas at demonstrators. In Nashville, more than 60 National Guard members put down their riot shields at the request of peaceful protesters. At a demonstration in Buffalo, New York, an SUV plowed into a group of officers, injuring three.", "An officer was shot and gravely wounded as police tried to disperse a crowd outside a Las Vegas hotel and casino. Four officers were shot in St. Louis; they were expected to recover.", "Philadelphia officials described a chaotic night in which one person was killed trying to use explosives to open an ATM, a gun shop owner fatally shot a would-be thief, and a 19-year-old died of injuries during looting."]
+        
+        if #available(OSX 10.14, *) {
+            TFIDF(documents: documents)
+        } else {
+            // Fallback on earlier versions
+        }
         
         createApplicationDocumentsDirectoryIfMissing()
         
         TrackerManager.shared.register(tracker: UserInputTracker())
         TrackerManager.shared.register(tracker: WindowsActivityTracker())
         TrackerManager.shared.register(tracker: ResourceActivityTracker())
+        TrackerManager.shared.register(tracker: TaskTracker())
         //TrackerManager.shared.register(tracker: UserEfficiencyTracker())
         //TrackerManager.shared.register(tracker: EmotionTracker())
                 

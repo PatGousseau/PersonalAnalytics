@@ -9,16 +9,7 @@ import Foundation
 import CoreGraphics
 import Quartz
 
-struct ActiveApplication {
-    var time: Date
-    var tsStart: Date
-    var tsEnd: Date
-    var window: String
-    var process: String
-}
-
 class WindowsActivityTracker: ITracker{
-
     var name = WindowsActivitySettings.Name
     var isRunning: Bool
     
@@ -31,6 +22,8 @@ class WindowsActivityTracker: ITracker{
     var unsafeChars : CharacterSet
     let ignorelist = ["loginwindow", "com.apple.WebKit.WebContent", "CoreServicesUIAgent", "System Events","SecurityAgent", "PersonalAnalytics Web Content", "ScreenSaverEngine"]
     var isPaused = false
+    
+    var listeners: [IWindowsActivityListener] = []
 
   
     init(){
@@ -202,6 +195,16 @@ class WindowsActivityTracker: ITracker{
                     lastApplication!.window = title
                 }
                 else if (lastApplication!.process != activeAppName || (lastApplication!.window != title)){
+                    
+                    for listener in listeners {
+                        if(lastApplication!.process != activeAppName){
+                            listener.notifyAppChange(appName: activeAppName)
+                        }
+                        if(lastApplication!.window != title){
+                            listener.notifyWindowTitleChange(windowTitle: title)
+                        }
+                    }
+                    
                     // at this point, the last app is no longer active and we can persist it
                     WindowsActivityQueries.saveActiveApplication(app: lastApplication!)
                     // new application which is currently running
@@ -211,6 +214,14 @@ class WindowsActivityTracker: ITracker{
                     NotificationCenter.default.post(name: NSNotification.Name(rawValue: "activeApplicationChange"), object: nil, userInfo: ["activeApplication":activeApp])
                 }
             }
+        }
+    }
+    
+    func registerListener(listener: IWindowsActivityListener){
+        listeners.append(listener)
+        if let app = lastApplication {
+            listener.notifyAppChange(appName: app.process)
+            listener.notifyWindowTitleChange(windowTitle: app.window)
         }
     }
 }
