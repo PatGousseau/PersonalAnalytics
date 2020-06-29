@@ -46,13 +46,7 @@ class EmotionPopUpWindowController: NSWindowController {
 
         self.window?.makeKeyAndOrderFront(self)
     }
-
-    // MARK: Lifecycle events
-    override func windowDidLoad() {
-        super.windowDidLoad()
-        resetForm()
-    }
-
+ 
 
     // MARK: UI behaviour
 
