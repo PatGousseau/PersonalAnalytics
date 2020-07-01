@@ -12,17 +12,17 @@ class Task{
     var startTime: TimeInterval
     var endTime: TimeInterval
     var duration: TimeInterval
+    var words: [String:Double]
     var name: String
     var taskId: String
-    var URL: String?
     
-    init(start: TimeInterval, end: TimeInterval, taskId: String, name: String, url: String? = nil){
+    init(start: TimeInterval, end: TimeInterval, taskId: String, name: String, words: [String:Double]){
         self.startTime = start
         self.endTime = end
+        self.duration = end - start
         self.name = name
         self.taskId = taskId
-        self.duration = endTime - startTime
-        self.URL = url
+        self.words = words
     }
     
 }

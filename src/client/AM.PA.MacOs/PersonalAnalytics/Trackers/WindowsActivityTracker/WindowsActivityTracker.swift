@@ -128,15 +128,16 @@ class WindowsActivityTracker: ITracker{
         self.idleTime = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: anyInputEventType)
         
         if(idleTime > 2 * 60){
-            print("idle -  ----------")
             if(!isIdle){
                 isIdle = true
+                listeners.map{$0.notifyIdle()}
                 saveCurrentApplicationToMemory()
             }
         }
         else{
             if(isIdle){
                 isIdle = false
+                listeners.map{$0.notifyResumed()}
                 NotificationCenter.default.post(name: NSNotification.Name(rawValue: "isIdle"), object: nil, userInfo: ["isidle":isIdle])
                 saveCurrentApplicationToMemory()
             }

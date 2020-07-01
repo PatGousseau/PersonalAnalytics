@@ -10,4 +10,6 @@ import Foundation
 protocol IWindowsActivityListener {
     func notifyWindowTitleChange(windowTitle: String)
     func notifyAppChange(appName: String)
+    func notifyIdle()
+    func notifyResumed()
 }

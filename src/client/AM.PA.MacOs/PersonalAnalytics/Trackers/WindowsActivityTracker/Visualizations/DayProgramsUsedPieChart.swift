@@ -27,6 +27,7 @@ class DayProgamsUsedPieChart: IVisualization {
         for (_, value) in dict{
             sum += value
         }
+        sum = Double(round(sum * 10) / 10)
         return sum
     }
     

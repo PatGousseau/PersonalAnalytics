@@ -132,6 +132,7 @@ class PAHttpServer: NSObject {
         server["/jquery.1.11.3.min.js"] = getResource(name:"jquery.1.11.3.min",type:"js")
         server["/d3.min.js"] = getResource(name:"d3.min",type:"js")
         server["/d3.timeline.js"] = getResource(name:"d3.timeline",type:"js")
+        server["/d3.layout.cloud.js"] = getResource(name:"d3.layout.cloud",type:"js")
         server["/c3.min.js"] = getResource(name:"c3.min",type:"js")
         server["/masonry.pkgd.min.js"] = getResource(name:"masonry.pkgd.min",type:"js")
         server["/c3.min.css"] = getResource(name:"c3.min",type:"css")
@@ -147,7 +148,6 @@ class PAHttpServer: NSObject {
     }
     
     func getResource(name: String, type: String) -> ((HttpRequest) -> HttpResponse){
-        
         return shareFile(Bundle.main.path(forResource: name, ofType: type)!)
     }
     

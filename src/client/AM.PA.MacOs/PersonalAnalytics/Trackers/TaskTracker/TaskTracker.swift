@@ -8,8 +8,9 @@
 import Foundation
 
 class TaskTracker: ITracker, IWindowsActivityListener {
+    var name: String = TaskSettings.Name
     
-    var name: String = "TaskTracker" // move to settings file later
+    
     var timer: Timer?
     
     var isRunning: Bool = false
@@ -17,9 +18,11 @@ class TaskTracker: ITracker, IWindowsActivityListener {
     var segmentStartTime: Date?
     var windowTitles: [String] = []
     var appNames: [String] = []
+    var times: [Double] = []
     var activeAppName: String?
     var activeWindowTitle: String?
-    
+    var isIdle = false
+        
     init(){
         if let activityTracker: WindowsActivityTracker = (TrackerManager.shared.getTracker(tracker: WindowsActivitySettings.Name) as! WindowsActivityTracker) {
             activityTracker.registerListener(listener: self)
@@ -39,7 +42,7 @@ class TaskTracker: ITracker, IWindowsActivityListener {
     func start() {
         timer?.invalidate()
         segmentStartTime = Date()
-        timer = Timer.scheduledTimer(timeInterval: 60.0, target: self, selector: #selector(captureTaskSegment), userInfo: nil, repeats: true)
+        timer = Timer.scheduledTimer(timeInterval: 180.0, target: self, selector: #selector(captureTaskSegment), userInfo: nil, repeats: true)
         isRunning = true
     }
     
@@ -51,39 +54,77 @@ class TaskTracker: ITracker, IWindowsActivityListener {
         
     }
     
+    func calculateWindowTitleDurations(times: [Double]) -> [Double] {
+        var durations: [Double] = []
+        var d : Double = 0
+        times.forEach({
+            durations.append($0 - d)
+            d = $0
+        })
+        return durations
+    }
+    
+    func filterCurrentTaskSegment() -> [String] {
+        let durations = calculateWindowTitleDurations(times: times)
+        var filteredTitles: [String] = []
+        for (title, duration) in zip(windowTitles, durations){
+            if(duration >= 5){
+                filteredTitles.append(title)
+            }
+        }
+        return filteredTitles
+    }
+    
     @objc func captureTaskSegment(){
-        TaskQueries.saveTaskSegment(tsStart: segmentStartTime!, tsEnd: Date(), windowTitles: windowTitles, appNames: appNames)
+        if(!isIdle){
+            if activeWindowTitle != nil{
+                self.notifyWindowTitleChange(windowTitle: activeWindowTitle!)
+            }
+            if(activeAppName != nil){
+                self.notifyAppChange(appName: activeAppName!)
+            }
+            
+            let titles = filterCurrentTaskSegment()
+            TaskQueries.saveTaskSegment(tsStart: segmentStartTime!, tsEnd: Date(), windowTitles: titles, appNames: appNames)
+        }
         segmentStartTime = Date()
-        
-        if(activeWindowTitle != nil){
-            windowTitles = [activeWindowTitle!]
-        }
-        else{
-            windowTitles = []
-        }
-        
-        if(activeAppName != nil){
-            appNames = [activeAppName!]
-        }
-        else{
-            appNames = []
-        }
+        windowTitles = []
+        times = []
     }
     
     func getVisualizationsDay(date: Date) -> [IVisualization]{
-        print("getviz")
         return [DayTaskTimeline()]
     }
     
     func notifyWindowTitleChange(windowTitle: String) {
-        windowTitles.append(windowTitle)
+        if activeWindowTitle != nil {
+            windowTitles.append(activeWindowTitle!)
+            times.append(Date().timeIntervalSinceReferenceDate - segmentStartTime!.timeIntervalSinceReferenceDate)
+        }
+        else{
+            windowTitles.append("")
+            times.append(Date().timeIntervalSinceReferenceDate - segmentStartTime!.timeIntervalSinceReferenceDate)
+        }
         activeWindowTitle = windowTitle
     }
     
     func notifyAppChange(appName: String) {
-        appNames.append(appName)
+        if(activeAppName != nil){
+            appNames.append(activeAppName!)
+        }
+        else{
+            appNames.append("")
+            times.append(Date().timeIntervalSinceReferenceDate - segmentStartTime!.timeIntervalSinceReferenceDate)
+        }
         activeAppName = appName
     }
     
+    func notifyIdle(){
+        isIdle = true
+    }
+    
+    func notifyResumed(){
+        isIdle = false
+    }
 }
 

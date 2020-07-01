@@ -100,7 +100,8 @@ class DayTaskTimeline: IVisualization{
                 times +=    ", 'window_title': '" + taskEntry.name.replacingOccurrences(of: "'", with:"\\'")
                 times +=    "', 'app': '" + taskEntry.name.replacingOccurrences(of: "'", with:"\\'")
                 times +=    "', 'color': '" + GetHtmlColorForContextCategory(taskEntry.taskId)
-                times +=    "', 'task': '" + taskEntry.taskId + "'}, "
+                times +=    "', 'task': '" + taskEntry.taskId
+                times +=    "', 'relevancy_scores': " + createRelevancyScores(wordlist: taskEntry.words) + "}, "
             }
             
             html += "{class: '" + taskId + "', task: '" + taskId + "', times: [" + times + "]}, ";
@@ -109,9 +110,20 @@ class DayTaskTimeline: IVisualization{
         return html;
     }
     
+    func createRelevancyScores(wordlist: [String:Double]) -> String {
+        var result = "["
+        let scores = wordlist.filter{ $0.value > 0 }
+        let max = scores.values.max() ?? 1
+        
+        for key in scores.keys {
+            result += "{\"text\":\"\(key.replacingOccurrences(of: "\"", with: "\\\"").replacingOccurrences(of: "'", with: "\\'"))\", \"size\":\(scores[key]!/max * 30)},"
+        }
+        result += "]"
+        return result
+    }
+    
     func getTaskVisualizationContent(taskList: [Task]) -> String{
         let categories = getTaskIds(taskList)
-        print(categories)
         let taskTimeline: String = "taskTimeline"
         let defaultHoverText = "Hint: Hover over the timeline to see details.";
         
@@ -156,12 +168,18 @@ class DayTaskTimeline: IVisualization{
         html += "var itemHeight = 0.15 * document.getElementsByClassName('item Wide')[0].offsetHeight;";
         
         // hover Event (d: current rendering object, i: index during d3 rendering, data: data object)
-        var hover = ".hover(function(d, i, data) {\n"
+        var hover = ".mouseover(function(d, i, data) {\n"
         //hover += "console.log(d);\n"
         //hover += "console.log(data);\n"
         
-        hover += "document.getElementById('hoverDetails').innerHTML = '<span style=\\'font-size:1.2em; color:#007acc;\\'>From ' + d['starting_time_formatted'] + ' to ' + d['ending_time_formatted'] + ' (' + d['duration'] + 'min)</span>' + '<br /><strong>Task</strong>: <span style=\\'color:' + d['color'] + '\\'>■</span> ' + d['task'] + '<br /><img style=\\'max-width:70%;max-height:auto;display:block;margin-left:auto;margin-right:auto\\' src=\\'test.png\\'/>';"
+        hover += "document.getElementById('taskHoverDetails').innerHTML = '<span style=\\'font-size:1.2em; color:#007acc;\\'>From ' + d['starting_time_formatted'] + ' to ' + d['ending_time_formatted'] + ' (' + d['duration'] + 'min)</span>' + '<br /><strong>Task</strong>: <span style=\\'color:' + d['color'] + '\\'>■</span> ' + d['task'];"
         
+        hover += "var color = d3.scale.linear().domain([0,1,2,3,4,5,6,10,15,20,100]).range([\"#ddd\", \"#ccc\", \"#bbb\", \"#aaa\", \"#999\", \"#888\", \"#777\", \"#666\", \"#555\", \"#444\", \"#333\", \"#222\"]); console.log(d['relevancy_scores']);"
+        
+        hover += "d3.layout.cloud().size([800, 80]).words(d['relevancy_scores']).rotate(0).fontSize(function(d) { return d.size; }).on(\"end\", draw).start();"
+
+        hover += "function draw(words) { d3.select(\"#wordcloud\").selectAll(\"*\").remove(); d3.select(\"#wordcloud\").append(\"svg\").attr(\"width\", 850).attr(\"height\", 90).attr(\"class\", \"wordcloud\").append(\"g\").attr(\"transform\", \"translate(380,38)\").selectAll(\"text\").data(words).enter().append(\"text\").style(\"font-size\", function(d) { return d.size + \"px\"; }).style(\"fill\", function(d, i) { return color(i); }).attr(\"transform\", function(d) { return \"translate(\" + [d.x, d.y] + \")rotate(\" + d.rotate + \")\"; }).text(function(d) { return d.text; });}"
+
         hover += "console.log(d['task']);"
         
         for task in categories {
@@ -170,7 +188,7 @@ class DayTaskTimeline: IVisualization{
         hover += "})"
                 
         // mouseout Event
-        var mouseout = ".mouseout(function (d, i, datum) { document.getElementById('hoverDetails').innerHTML = '" + defaultHoverText + "';\n"
+        var mouseout = ".mouseout(function (d, i, datum) { d3.select(\"#wordcloud\").selectAll(\"*\").remove(); document.getElementById('taskHoverDetails').innerHTML = '" + defaultHoverText + "';\n"
         
         for task in categories {
             mouseout += "if(d['task'] != \"" + task + "\") { d3.selectAll(\".timelineSeries_" + task + "\").style(\"opacity\", 1);}\n"
@@ -192,15 +210,14 @@ class DayTaskTimeline: IVisualization{
         /////////////////////
         
         // show details on hover
-        html += "<div style='height:35%; style='align: center'><p id='hoverDetails'>" + defaultHoverText + "</p></div>";
+        html += "<div style='height:35%; style='align: center'><p id='taskHoverDetails' style='margin-block-end:0.5em'>" + defaultHoverText + "</p><div id='wordcloud' style='height:70%;overflow:hidden'></div></div>";
         
         // add timeline
         html += "<div id='" + taskTimeline + "' align='center'></div>";
         
         // add legend
-        html += GetLegendForCategories(categoryList: categories);
+        //html += GetLegendForCategories(categoryList: categories);
         
-        print(html)
         return html;
     }
     
