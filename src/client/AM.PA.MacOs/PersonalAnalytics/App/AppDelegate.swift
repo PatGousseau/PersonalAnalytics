@@ -8,7 +8,6 @@
 
 import Foundation
 import Sparkle
-import PythonKit
 
 
 @NSApplicationMain

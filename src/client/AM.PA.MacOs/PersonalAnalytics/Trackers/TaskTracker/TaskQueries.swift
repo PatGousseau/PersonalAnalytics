@@ -20,14 +20,7 @@ class TaskQueries{
     }
     
     static func formWordCloudWordList(_ v: Vector) -> [String:Double]{
-        if(v.labels == nil){
-            return [String:Double]()
-        }
-        var dict = [String:Double]()
-        for i in 0..<v.size(){
-            dict[v.labels![i]] = v.get(i)
-        }
-        return dict
+        return v.scores
     }
     
     static func mapToRandomTask(taskSegments: [VectoredTaskSegment]) -> [Task] {
@@ -51,13 +44,8 @@ class TaskQueries{
     
     static func generateVectoredTaskSegments(date: Date) -> [VectoredTaskSegment] {
         let taskSegments = TaskQueries.getTaskSegmentsForDay(date: date) //later add in date parameter
-        if #available(OSX 10.14, *) {
-            let tfidf = TFIDF(documents: taskSegments.map({$0.windowTitles}))
-            let vectors = taskSegments.map{VectoredTaskSegment(taskSegment: $0, vector: tfidf.vectorize(document: $0.windowTitles))}
-            return vectors
-        } else {
-            return []
-        }
+        let tfidf = TFIDF(documents: taskSegments.map({$0.windowTitles}))
+        return taskSegments.map{VectoredTaskSegment(taskSegment: $0, vector: tfidf.vectorize(document: $0.windowTitles))}
     }
     
     static func areAdjacent(_ ts1: TaskSegment, _ ts2: TaskSegment) -> Bool {
@@ -79,7 +67,6 @@ class TaskQueries{
             
             vectors.append(ts1.vector)
             windowTitles.append(ts1.windowTitles)
-            print(Vector.cosine(ts1.vector, ts2.vector))
             if(Vector.cosine(ts1.vector, ts2.vector) > TaskSettings.TaskSegmentSimilarityThreshold && areAdjacent(ts1,ts2)){
                 continue
             }

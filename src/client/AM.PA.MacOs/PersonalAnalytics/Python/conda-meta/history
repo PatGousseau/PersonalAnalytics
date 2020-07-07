@@ -19,3 +19,8 @@
 +conda-forge::xz-5.2.5-h0b31af3_0
 +conda-forge::zlib-1.2.11-h0b31af3_1006
 # update specs: ['python']
+==> 2020-07-06 15:42:46 <==
+# cmd: /Users/csatterfield/anaconda3/bin/conda install nltk
++conda-forge::nltk-3.4.4-py_0
++conda-forge::six-1.15.0-pyh9f0ad1d_0
+# update specs: ['nltk']
