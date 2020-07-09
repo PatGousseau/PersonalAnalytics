@@ -12,4 +12,5 @@ enum ResourceActivitySettings {
     static let DbTableActivity = "resource_activity"
     static let DbTableApplicationResource = "resource_application"
     static let Name = "ResourceActivityTracker"
+    static let SimilarityTreshold:Float = 0.6
 }

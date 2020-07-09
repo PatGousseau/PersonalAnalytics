@@ -94,6 +94,10 @@
 		B017DECF237964C800B0EB19 /* DateFormatConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B017DECE237964C800B0EB19 /* DateFormatConverter.swift */; };
 		B0259684248E26B0005E9915 /* MenuBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0259683248E26B0005E9915 /* MenuBar.swift */; };
 		B0259685248E26B0005E9915 /* MenuBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0259683248E26B0005E9915 /* MenuBar.swift */; };
+		B04D4A3824A9DE9100FF9060 /* ResourceWindow.xib in Resources */ = {isa = PBXBuildFile; fileRef = B04D4A3724A9DE9100FF9060 /* ResourceWindow.xib */; };
+		B04D4A3924A9DE9100FF9060 /* ResourceWindow.xib in Resources */ = {isa = PBXBuildFile; fileRef = B04D4A3724A9DE9100FF9060 /* ResourceWindow.xib */; };
+		B04D4A3B24A9DEBC00FF9060 /* ResourceWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B04D4A3A24A9DEBC00FF9060 /* ResourceWindowController.swift */; };
+		B04D4A3C24A9DEBC00FF9060 /* ResourceWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B04D4A3A24A9DEBC00FF9060 /* ResourceWindowController.swift */; };
 		B061EC262382F52F005AD5FD /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B061EC252382F52F005AD5FD /* WebKit.framework */; };
 		B09DC4A423E9705F00845428 /* ResourceActivityTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B09DC4A323E9705F00845428 /* ResourceActivityTracker.swift */; };
 		B09DC4A523E9705F00845428 /* ResourceActivityTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B09DC4A323E9705F00845428 /* ResourceActivityTracker.swift */; };
@@ -252,6 +256,8 @@
 		B0125A0A238C251200A7F0A9 /* Production.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Production.xcconfig; sourceTree = "<group>"; };
 		B017DECE237964C800B0EB19 /* DateFormatConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFormatConverter.swift; sourceTree = "<group>"; };
 		B0259683248E26B0005E9915 /* MenuBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBar.swift; sourceTree = "<group>"; };
+		B04D4A3724A9DE9100FF9060 /* ResourceWindow.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = ResourceWindow.xib; sourceTree = "<group>"; };
+		B04D4A3A24A9DEBC00FF9060 /* ResourceWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResourceWindowController.swift; sourceTree = "<group>"; };
 		B061EC252382F52F005AD5FD /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
 		B076EE832428B8D30081FDF9 /* PersonalAnalytics DevDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "PersonalAnalytics DevDebug.entitlements"; sourceTree = "<group>"; };
 		B076EE85242B54C40081FDF9 /* PersonalAnalyticsRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PersonalAnalyticsRelease.entitlements; sourceTree = "<group>"; };
@@ -440,9 +446,11 @@
 			isa = PBXGroup;
 			children = (
 				B09DC4AD23E979A500845428 /* EonilFSEvents */,
+				B09DC4A923E970E400845428 /* ResourceActivitySettings.swift */,
 				B09DC4A323E9705F00845428 /* ResourceActivityTracker.swift */,
 				B09DC4A623E970BA00845428 /* ResourceActivityQueries.swift */,
-				B09DC4A923E970E400845428 /* ResourceActivitySettings.swift */,
+				B04D4A3724A9DE9100FF9060 /* ResourceWindow.xib */,
+				B04D4A3A24A9DEBC00FF9060 /* ResourceWindowController.swift */,
 			);
 			path = ResourceActivityTracker;
 			sourceTree = "<group>";
@@ -602,8 +610,8 @@
 		B9C79F801ECA6BCA00E005F0 /* Trackers */ = {
 			isa = PBXGroup;
 			children = (
-				B09DC4A223E9703700845428 /* ResourceActivityTracker */,
 				B904C25B1F01AEF000624D9C /* TrackerManager.swift */,
+				B09DC4A223E9703700845428 /* ResourceActivityTracker */,
 				A3B37CEF21DD24C3008784B1 /* EmotionTracker */,
 				B9A0B7A11EDA356A00BE6F71 /* UserInputTracker */,
 				B9A0B7A21EDA359500BE6F71 /* WindowsActivityTracker */,
@@ -740,6 +748,7 @@
 				B9A3103F1EC5262E003B2470 /* PreferencesWindow.xib in Resources */,
 				B9D50B881EDFC66C00145EC8 /* RetrospectiveView.xib in Resources */,
 				B9851FD91ED5F951002C24AF /* tablefilter.css in Resources */,
+				B04D4A3824A9DE9100FF9060 /* ResourceWindow.xib in Resources */,
 				B9851FD51ED5F951002C24AF /* personalanalytics.html in Resources */,
 				B9782F53216D6264006CCB73 /* Main.storyboard in Resources */,
 				B9851FD11ED5F951002C24AF /* d3.min.js in Resources */,
@@ -771,6 +780,7 @@
 				B01259E9238C169E00A7F0A9 /* PreferencesWindow.xib in Resources */,
 				B01259EA238C169E00A7F0A9 /* RetrospectiveView.xib in Resources */,
 				B01259EB238C169E00A7F0A9 /* tablefilter.css in Resources */,
+				B04D4A3924A9DE9100FF9060 /* ResourceWindow.xib in Resources */,
 				B01259EC238C169E00A7F0A9 /* personalanalytics.html in Resources */,
 				B01259ED238C169E00A7F0A9 /* Main.storyboard in Resources */,
 				B01259EE238C169E00A7F0A9 /* d3.min.js in Resources */,
@@ -946,6 +956,7 @@
 				B9873A7C1EBA92DA0050E864 /* UserInputTracker.swift in Sources */,
 				B9851FE51ED64F2F002C24AF /* ActivityVisualization.swift in Sources */,
 				0DC4BF2D1BF2B57A00366771 /* WindowGrabber.m in Sources */,
+				B04D4A3B24A9DEBC00FF9060 /* ResourceWindowController.swift in Sources */,
 				B09DC4A723E970BA00845428 /* ResourceActivityQueries.swift in Sources */,
 				0D4676491BD54C2000796D2D /* KeystrokeController.swift in Sources */,
 				A3B37CF321DD258C008784B1 /* EmotionTracker.swift in Sources */,
@@ -1013,6 +1024,7 @@
 				B01259C9238C169E00A7F0A9 /* UserInputTracker.swift in Sources */,
 				B01259CA238C169E00A7F0A9 /* ActivityVisualization.swift in Sources */,
 				B01259CB238C169E00A7F0A9 /* WindowGrabber.m in Sources */,
+				B04D4A3C24A9DEBC00FF9060 /* ResourceWindowController.swift in Sources */,
 				B09DC4A823E970BA00845428 /* ResourceActivityQueries.swift in Sources */,
 				B01259CC238C169E00A7F0A9 /* KeystrokeController.swift in Sources */,
 				B01259CD238C169E00A7F0A9 /* EmotionTracker.swift in Sources */,
