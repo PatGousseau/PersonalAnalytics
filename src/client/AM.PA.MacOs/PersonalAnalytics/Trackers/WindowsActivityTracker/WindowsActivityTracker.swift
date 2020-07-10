@@ -174,7 +174,7 @@ class WindowsActivityTracker: ITracker{
                 
                 for window in activeWindows ?? [] {
                     if window["kCGWindowName"] != nil {
-                        if window["kCGWindowName"] as! String != "" {
+                        if isValidWindowTitle(windowTitle: window["kCGWindowName"] as! String) {
                             title = window["kCGWindowName"] as! String
                             break
                         }
@@ -224,5 +224,12 @@ class WindowsActivityTracker: ITracker{
             listener.notifyAppChange(appName: app.process)
             listener.notifyWindowTitleChange(windowTitle: app.window)
         }
+    }
+    
+    func isValidWindowTitle(windowTitle: String) -> Bool{
+        if(windowTitle.starts(with: "Item-") || windowTitle == ""){
+            return false
+        }
+        return true
     }
 }

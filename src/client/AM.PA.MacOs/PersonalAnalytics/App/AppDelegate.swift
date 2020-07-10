@@ -150,13 +150,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSUserNotificationCenterDele
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         
         // opening the preference window to show which trackers are working and which are missing permission
-        showPreferencesIfTrackerDisabled()
+        //showPreferencesIfTrackerDisabled()
         preferencesController.repositionWindow()
         createApplicationDocumentsDirectoryIfMissing()
         
-        TrackerManager.shared.register(tracker: UserInputTracker())
+        //TrackerManager.shared.register(tracker: UserInputTracker())
         TrackerManager.shared.register(tracker: WindowsActivityTracker())
-        TrackerManager.shared.register(tracker: ResourceActivityTracker())
+        //TrackerManager.shared.register(tracker: ResourceActivityTracker())
         TrackerManager.shared.register(tracker: TaskTracker())
         //TrackerManager.shared.register(tracker: UserEfficiencyTracker())
         //TrackerManager.shared.register(tracker: EmotionTracker())
