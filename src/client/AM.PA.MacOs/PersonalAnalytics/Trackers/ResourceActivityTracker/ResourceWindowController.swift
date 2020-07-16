@@ -10,23 +10,28 @@ import Cocoa
 
 class InterventionButton: NSButton {
     var activeResourcePath: String?
-    fileprivate var associatedResource: SimilarResource?
+    fileprivate var associatedResource: AssociatedResource?
     var intervention: Intervention?
 }
 
-fileprivate enum InterventionStatus {
+enum InterventionStatus {
     case confirmedDissimilar
     case confirmedSimilar
     case open
 }
 
-fileprivate class SimilarResource {
+class AssociatedResource {
     let path: String
     var status: InterventionStatus
     
     init(path: String) {
         self.path = path
         self.status = .open
+    }
+    
+    init(path: String, status: InterventionStatus) {
+        self.path = path
+        self.status = status
     }
 }
     
@@ -59,7 +64,7 @@ protocol ResourceControllerDelegate: AnyObject {
 extension ResourceWindowController: NSTableViewDataSource {
     
     func numberOfRows(in tableView: NSTableView) -> Int {
-        return similarResources?.count ?? 0
+        return associatedResources?.count ?? 0
     }
 }
 
@@ -74,7 +79,7 @@ extension ResourceWindowController: NSTableViewDelegate, InterventionDelegate {
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         
         // anything to show?
-        guard let resource = similarResources?[row] else {
+        guard let resource = associatedResources?[row] else {
             return nil
         }
         
@@ -114,9 +119,13 @@ class ResourceWindowController: NSWindowController {
     // MARK: IBOutlets
     @IBOutlet weak var tableView: NSTableView!
     @IBOutlet weak var activeResourceTextField: NSTextFieldCell!
+    @IBOutlet weak var associatedResourcesCountTextField: NSTextFieldCell!
+    @IBOutlet weak var activeAppTextField: NSTextField!
+    @IBOutlet weak var activeAppIcon: NSImageView!
     
-    private var similarResources: [SimilarResource]?
+    private var associatedResources: [AssociatedResource]?
     private var activeResource: String?
+    private var currentActiveTableRow: Int = 0
         
     var delegate: ResourceControllerDelegate?
     
@@ -138,17 +147,10 @@ class ResourceWindowController: NSWindowController {
     }
     
     func forwardIntervention(activeResource: String, associatedResource: String, type: Intervention) {
-        
         delegate?.handleIntervention(activeResource: activeResource, associatedResource: associatedResource, type: type)
-        
-        // if (type == .DissimilarityIntervention) {
-        //     // filtering the dissimilar resource from the table view
-        //     similarResources = similarResources!.filter { $0 != associatedResource }
-        //     tableView.reloadData()
-        // }
-        
-    
         tableView.reloadData()
+        tableView.selectRowIndexes(NSIndexSet(index: currentActiveTableRow) as IndexSet, byExtendingSelection: false)
+
     }
         
     @objc func show(_ sender: AnyObject) {
@@ -157,24 +159,28 @@ class ResourceWindowController: NSWindowController {
         // self.window?.makeKeyAndOrderFront(self)
     }
     
-    func setActiveResource(name: String, simResources: [String]) {
-        if name == "" {
+    func setActiveResource(activeResourcePath: String, activeAppName: String, activeAppIcon icon: NSImage?, associatedResources: [AssociatedResource]) {
+        if activeResourcePath == "" {
             tableView.isHidden = true
             activeResourceTextField.stringValue = "no resource active"
+            associatedResourcesCountTextField.stringValue = ""
         } else {
             tableView.isHidden = false
-            activeResourceTextField.stringValue = name
+            activeResourceTextField.stringValue = activeResourcePath
+            associatedResourcesCountTextField.stringValue = String(associatedResources.count) 
         }
         
+        activeAppTextField.stringValue = activeAppName
+        activeAppIcon.image = icon
         
-        similarResources = simResources.map { SimilarResource(path: $0)}
-        activeResource = name
-        tableView.reloadData()
+        self.associatedResources = associatedResources
+        self.activeResource = activeResourcePath
+        self.tableView.reloadData()
     }
     
     @objc func handleTableDoubleClick() {
         let row = tableView.clickedRow
-        let resource = similarResources![row]
+        let resource = associatedResources![row]
         if resource.path.starts(with: "file:///") {
             NSWorkspace.shared.openFile(resource.path)
         } else {
@@ -186,6 +192,19 @@ class ResourceWindowController: NSWindowController {
     }
     
     override func keyDown(with event: NSEvent) {
-        print("TODO: check which row is selected and listen to Y (sim) and N (dissim) keystrokes. Handle accordingly")
+        if let resource = associatedResources?[tableView.selectedRow] {
+            
+            if (event.characters == "n") {
+                resource.status = .confirmedDissimilar
+                currentActiveTableRow = tableView.selectedRow
+                forwardIntervention(activeResource: activeResource!, associatedResource: resource.path, type: .dissimilar)
+            }
+            
+            if (event.characters == "y") {
+                resource.status = .confirmedSimilar
+                currentActiveTableRow = tableView.selectedRow
+                forwardIntervention(activeResource: activeResource!, associatedResource: resource.path, type: .similar)
+            }
+        }
     }
 }

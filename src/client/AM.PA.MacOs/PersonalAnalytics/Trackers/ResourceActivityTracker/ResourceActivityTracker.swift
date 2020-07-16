@@ -255,7 +255,7 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         return embeddings
     }
     
-    private func getSimilarResources(to path: String) -> [String]? {
+    private func getSimilarResourcePaths(to path: String) -> [String]? {
         if let token = tokenMap[path] {
             if let embeddings = self.embeddings {
                 if token >= embeddings.count {
@@ -392,10 +392,40 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
                 return // when navigating to the ResourceWindow, the last active resource should remain.
             }
             
-            let similarResources = getSimilarResources(to: resourcePath) ?? []
-            windowContoller.setActiveResource(name: resourcePath, simResources: similarResources)
+            let associatedResourcePaths = getSimilarResourcePaths(to: resourcePath) ?? []
+            let associatedResources = toAssociatedResources(associatedResourcePaths: associatedResourcePaths, activeResourcePath: resourcePath)
+            windowContoller.setActiveResource(activeResourcePath: resourcePath, activeAppName: appName, activeAppIcon: activeApp.icon, associatedResources: associatedResources)
         }
     }
+    
+    private func toAssociatedResources(associatedResourcePaths: [String], activeResourcePath: String) -> [AssociatedResource] {
+        return associatedResourcePaths.map({ (r: String) -> AssociatedResource in
+            let set: Set<Int> = [(tokenMap[r] ?? -1), tokenMap[activeResourcePath] ?? -1]
+            if let intervention = interventionMap[set] {
+                if intervention == .similar {
+                    return AssociatedResource(path: r, status: .confirmedSimilar)
+                }
+                else if intervention == .dissimilar {
+                    return AssociatedResource(path: r, status: .confirmedDissimilar)
+                }
+                
+            }
+            return AssociatedResource(path: r)
+        })
+    }
+    
+//    private func filterConflictingInterventions(activeResource: String, simResources: [String]) -> [String] {
+//        print("filtering for active resource", activeResource)
+//        return simResources.filter({ (r: String) -> Bool in
+//            let set: Set<Int> = [(tokenMap[r] ?? -1), tokenMap[activeResource] ?? -1]
+//            print("token set", set)
+//            if let intervention = interventionMap[set] {
+//                print("intervention found", intervention)
+//                return intervention != .dissimilar
+//            }
+//            return true
+//        })
+//    }
     
     private func getResourceOfActiveApplication(activeApp: NSRunningApplication) -> String {
         
