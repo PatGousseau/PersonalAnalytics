@@ -12,11 +12,8 @@ import Quartz
 
 // TODO:
 // better design of window and buttons
-// extract mathy stuff
-// filenames (embeddings.txt, anonymous-tokens.txt, ... in settings)
 // error handling --> CSVError
 // loading new website should trigger app or resource change
-// design for when no resource is available
 // how to open window
 // onAppChange, filter dissimilar resources, stick📍 similar resources
 
@@ -39,7 +36,10 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
     var invTokenMap = [Int: String]() // 2 : www.google.com
     var chunkMap = [String: String]() // pathChunk : randomStr
     var interventionMap = [Set<Int>: Intervention]()  // {token1, token2}: 0 (dissim)
-    var embeddings: [[Float]]?
+    var embeddings: [[Float]]? // embeddings learned with resource2vec or from co-occurrence matrix
+    var sequence = [Int]() // sequence of tokens
+    var freqCounts = [Int]() // #occurences of a token in the sequence
+    var cooccurrences = [[Int]]() // co-occurrence matrix
     
     
     lazy var supportDir: URL = {
@@ -51,31 +51,70 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
     init() {
         NotificationCenter.default.addObserver(self, selector: #selector(self.onActiveApplicationChange(_:)), name: NSNotification.Name(rawValue: "activeApplicationChange"), object: nil)
         
-        trackFSEvents()
+        // trackFSEvents()
         
-        windowContoller.showWindow(self)
+        windowContoller.show()
         windowContoller.delegate = self
         
-        do {
-            try readManualInterventions()
-            embeddings = try readEmbeddingsFromDisk()
-            // try readTokenMaps() TODO there's a bug
-            try writeTokenMapsFromSQLite()
-        }
-        catch CSVError.parseError(let msg) {
-            print("Error:", msg)
-        }
-        catch let error as NSError {
-            print("Failed to read file")
-            print(error)
+        // when the app is started, hurry up and get the data
+        refreshData(qos: .userInitiated)
+        
+        // periodically update the data in the background with low priority
+        Timer.scheduledTimer(withTimeInterval: ResourceActivitySettings.RefreshRate, repeats: true) { _ in
+            self.refreshData(qos: .utility)
         }
     }
+    
+    // this happens of the main queue
+    private func refreshData(qos: DispatchQoS.QoSClass) {
+        DispatchQueue.global(qos: qos).async { [weak self] in
+            guard let self = self else {
+                return
+            }
+            
+            do {
+                self.interventionMap = try self.readManualInterventions()
+                (self.tokenMap, self.invTokenMap, self.sequence, self.freqCounts) = try self.writeTokenMapsFromSQLite()
+                self.cooccurrences = self.buildCoocurrenceMatrix(sequence: self.sequence, frequencyCounts: self.freqCounts)
+                
+                self.embeddings = self.cooccurrences.map { $0.map { Float($0) } }
+                // self.embeddings = try self.readEmbeddingsFromDisk()
+            }
+            catch CSVError.parseError(let msg) {
+                print("Error:", msg)
+            }
+            catch let error as NSError {
+                print("Failed to read file")
+                print(error)
+            }
+            
+            print("resource tracker metadata is refreshed.")
+        }
+    }
+
+    private func buildCoocurrenceMatrix(sequence seq: [Int], frequencyCounts freq: [Int]) -> [[Int]] {
+        var C = Array(repeating: Array(repeating: 0, count: freq.count), count: freq.count)
         
-    private func readManualInterventions() throws {
-        let fileURL = supportDir.appendingPathComponent("manual-interventions").appendingPathExtension("txt")
+        for (i, token) in seq.enumerated() {
+            
+            let window_start = max(0, i-ResourceActivitySettings.WindowSize)
+            let window_end = min(seq.count, i+ResourceActivitySettings.WindowSize+1)
+            
+            for j in window_start...window_end {
+                C[token][seq[j]] += 1
+                C[seq[j]][token] += 1
+            }
+        }
+        
+        return C
+    }
+        
+    private func readManualInterventions() throws -> [Set<Int>: Intervention] {
+        let fileURL = supportDir.appendingPathComponent(ResourceActivitySettings.ManualInterventionFile)
+        var map = [Set<Int>: Intervention]()  // {token1, token2}: 0 (dissim)
         
         if FileManager.default.fileExists(atPath: fileURL.path) {
-            
+                        
             let data = try String(contentsOf: fileURL)
             let rows = data.components(separatedBy: "\n")
             for row in rows {
@@ -95,9 +134,11 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
                 } else {
                     throw CSVError.parseError("unknown intervention")
                 }
-                interventionMap[set] = intervention
+                map[set] = intervention
             }
         }
+        
+        return map
     }
 
     internal func handleIntervention(activeResource: String, associatedResource: String, type: Intervention) {
@@ -125,11 +166,10 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
             print("Failed to read file")
             print(error)
         }
-        
     }
     
     private func writeManualInterventions() throws {
-        let fileURL = supportDir.appendingPathComponent("manual-interventions").appendingPathExtension("txt")
+        let fileURL = supportDir.appendingPathComponent(ResourceActivitySettings.ManualInterventionFile)
         
         var str = ""
         for (resourceSet, type) in interventionMap {
@@ -147,12 +187,16 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         try str.write(to: fileURL, atomically: true, encoding: String.Encoding.utf8)
     }
 
-    private func writeTokenMapsFromSQLite() throws {
+    private func writeTokenMapsFromSQLite() throws -> ([String: Int], [Int: String], [Int], [Int]) {
         let dbController = DatabaseController.getDatabaseController()
         let rows = try dbController.executeFetchAll(query: "SELECT path FROM resource_application")
         
         var anonTokenMap = [String:Int]()
         var seq = ""
+        var intseq = [Int]()
+        var freqCounts = [Int]()
+        var invTokenMap = [Int:String]()
+        var tokenMap = [String: Int]()
         
         for row in rows {
             let path = String(row["path"]!)
@@ -161,11 +205,15 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
             
             if let token = tokenMap[path] {
                 seq += String(token) + ","
+                intseq.append(token)
+                freqCounts[token] += 1
             } else {
                 let token = tokenMap.count
                 invTokenMap[token] = path
                 tokenMap[path] = token
                 seq += String(token) + ","
+                intseq.append(token)
+                freqCounts.append(1)
             }
         }
         
@@ -175,9 +223,9 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         }
         
         do {
-            let sequenceURL = supportDir.appendingPathComponent("tokensequence").appendingPathExtension("txt")
-            let tokensURL = supportDir.appendingPathComponent("tokens").appendingPathExtension("txt")
-            let anonTokensURL = supportDir.appendingPathComponent("anonymous-tokens").appendingPathExtension("txt")
+            let sequenceURL = supportDir.appendingPathComponent(ResourceActivitySettings.TokenSequenceFile)
+            let tokensURL = supportDir.appendingPathComponent(ResourceActivitySettings.TokenFile)
+            let anonTokensURL = supportDir.appendingPathComponent(ResourceActivitySettings.AnonTokenFile)
             
             let tokens = [String](tokenMap.map { return String($1) + "," + $0 })
             let anonTokens = [String](anonTokenMap.map { return String($1) + "," + $0 })
@@ -187,6 +235,8 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         } catch let error as NSError {
             print(error)
         }
+        
+        return (tokenMap, invTokenMap, intseq, freqCounts)
     }
 
     private func anonymizePath(path: String) -> String {
@@ -207,31 +257,31 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
       return String((0..<length).map{ _ in letters.randomElement()! })
     }
 
-    private func readTokenMaps() throws  {
-        let fileURL = supportDir.appendingPathComponent("tokens").appendingPathExtension("txt")
-        let fileManager = FileManager.default
-        
-        if fileManager.fileExists(atPath: fileURL.path) {
-           
-            let data = try String(contentsOf: fileURL)
-            let rows = data.components(separatedBy: "\n")
-            for row in rows {
-                let splitted = row.split(separator: ",")
-                let token = Int(splitted[0].trimmingCharacters(in: .whitespaces))!
-                let path = splitted[1].trimmingCharacters(in: .whitespaces)
-                tokenMap[path] = token
-                invTokenMap[token] = path
-            }
-            
-            print(tokenMap.count, invTokenMap.count)
-        }
-    }
+//    private func readTokenMaps() throws  {
+//        let fileURL = supportDir.appendingPathComponent("tokens").appendingPathExtension("txt")
+//        let fileManager = FileManager.default
+//
+//        if fileManager.fileExists(atPath: fileURL.path) {
+//
+//            let data = try String(contentsOf: fileURL)
+//            let rows = data.components(separatedBy: "\n")
+//            for row in rows {
+//                let splitted = row.split(separator: ",")
+//                let token = Int(splitted[0].trimmingCharacters(in: .whitespaces))!
+//                let path = splitted[1].trimmingCharacters(in: .whitespaces)
+//                tokenMap[path] = token
+//                invTokenMap[token] = path
+//            }
+//
+//            print(tokenMap.count, invTokenMap.count)
+//        }
+//    }
     
     private func readEmbeddingsFromDisk() throws -> [[Float]]? {
-        let fileURL = supportDir.appendingPathComponent("embeddings").appendingPathExtension("txt")
+        let fileURL = supportDir.appendingPathComponent(ResourceActivitySettings.EmbeddingsFile)
         
         if !FileManager.default.fileExists(atPath: fileURL.path) {
-            print("embeddings.txt is missing")
+            print(ResourceActivitySettings.EmbeddingsFile + " is missing")
             return nil
         }
                 
@@ -267,7 +317,8 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
                 for (i, embedding) in embeddings.enumerated() {
                     if i == token { continue }                  
                     let thresh = ResourceActivitySettings.SimilarityTreshold
-                    if getSim(vector: embedding, other: activeEmbedding) > thresh {
+                    let similarity = Similarity.calc(vector: embedding, other: activeEmbedding)
+                    if similarity > thresh {
                         if let path = invTokenMap[i] {
                             similarResources.append(path)
                         }
@@ -284,30 +335,6 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         }
         
         return nil
-    }
-    
-    private func getSim(vector a: [Float], other b: [Float]) -> Float {
-        return dotProduct(vector: a, other: b) / (vecMagnitude(vector: a) * vecMagnitude(vector: b))
-    }
-    
-    private func dotProduct(vector a: [Float], other b: [Float]) -> Float {
-        if a.count != b.count {
-            //TODO: should we throw here?
-            return 0
-        }
-        var sum = Float(0)
-        for i in 0...a.count-1 {
-            sum += a[i] * b[i]
-        }
-        return sum
-    }
-    
-    private func vecMagnitude(vector a: [Float]) -> Float {
-        var sum = Float(0)
-        for elem in a {
-            sum += pow(elem, 2)
-        }
-        return sqrt(sum)
     }
     
     func stop() {
@@ -383,18 +410,38 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
                 resourcePath = getResourceOfActiveApplication(activeApp: activeApp)
             }
             
-            ResourceActivityQueries.saveResourceOfApplication(date: Date(), path: resourcePath, process: appName)
-            
             // "PersonalAnalytics" or "PersonalAnalytics Dev"
             let thisAppName = Bundle.main.infoDictionary![kCFBundleNameKey as String] as! String
             
             if appName == thisAppName {
-                return // when navigating to the ResourceWindow, the last active resource should remain.
+                // when navigating to the ResourceWindow, the last active resource should remain.
+                return 
             }
             
-            let associatedResourcePaths = getSimilarResourcePaths(to: resourcePath) ?? []
-            let associatedResources = toAssociatedResources(associatedResourcePaths: associatedResourcePaths, activeResourcePath: resourcePath)
-            windowContoller.setActiveResource(activeResourcePath: resourcePath, activeAppName: appName, activeAppIcon: activeApp.icon, associatedResources: associatedResources)
+            ResourceActivityQueries.saveResourceOfApplication(date: Date(), path: resourcePath, process: appName)
+            
+            if !windowContoller.isRecommendationEnabled {
+                return
+            }
+            
+            // indicate loading while similarities are processed
+            windowContoller.setLoadingResource(activeAppName: appName, activeAppIcon: activeApp.icon)
+            
+            // maybe something for the future if the user switches apps very quickly
+            // https://jordansmith.io/cancelling-background-tasks/
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                guard let self = self else {
+                    return
+                }
+                
+                let associatedResourcePaths = self.getSimilarResourcePaths(to: resourcePath) ?? []
+                let associatedResources = self.toAssociatedResources(associatedResourcePaths: associatedResourcePaths, activeResourcePath: resourcePath)
+                
+                // do the UI stuff on the queue as advised
+                DispatchQueue.main.async { [weak self] in
+                    self?.windowContoller.setActiveResource(activeResourcePath: resourcePath, activeAppName: appName, activeAppIcon: activeApp.icon, associatedResources: associatedResources)
+                }
+            }
         }
     }
     
@@ -413,19 +460,6 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
             return AssociatedResource(path: r)
         })
     }
-    
-//    private func filterConflictingInterventions(activeResource: String, simResources: [String]) -> [String] {
-//        print("filtering for active resource", activeResource)
-//        return simResources.filter({ (r: String) -> Bool in
-//            let set: Set<Int> = [(tokenMap[r] ?? -1), tokenMap[activeResource] ?? -1]
-//            print("token set", set)
-//            if let intervention = interventionMap[set] {
-//                print("intervention found", intervention)
-//                return intervention != .dissimilar
-//            }
-//            return true
-//        })
-//    }
     
     private func getResourceOfActiveApplication(activeApp: NSRunningApplication) -> String {
         

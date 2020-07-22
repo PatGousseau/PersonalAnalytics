@@ -125,6 +125,8 @@
 		B0A4006A23A7D5FB0032035A /* KeyboardInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0A4006823A7D5FB0032035A /* KeyboardInput.swift */; };
 		B0A4006C23A7D60B0032035A /* MouseInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0A4006B23A7D60B0032035A /* MouseInput.swift */; };
 		B0A4006D23A7D60B0032035A /* MouseInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0A4006B23A7D60B0032035A /* MouseInput.swift */; };
+		B0B08A8C24C73848009F0215 /* ResourceSimilarity.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0B08A8B24C73848009F0215 /* ResourceSimilarity.swift */; };
+		B0B08A8D24C73848009F0215 /* ResourceSimilarity.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0B08A8B24C73848009F0215 /* ResourceSimilarity.swift */; };
 		B0BA0F7A2384062A00042775 /* UserInputSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0BA0F792384062A00042775 /* UserInputSettings.swift */; };
 		B0CAC0EC23852B24002DBC55 /* WindowsActivitySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0CAC0EB23852B24002DBC55 /* WindowsActivitySettings.swift */; };
 		B0CAC0EE23854484002DBC55 /* UserEfficiencySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0CAC0ED23854484002DBC55 /* UserEfficiencySettings.swift */; };
@@ -274,6 +276,7 @@
 		B09DC4B523E97A7C00845428 /* EonilFSEventStream.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = EonilFSEventStream.swift; sourceTree = "<group>"; };
 		B0A4006823A7D5FB0032035A /* KeyboardInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardInput.swift; sourceTree = "<group>"; };
 		B0A4006B23A7D60B0032035A /* MouseInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MouseInput.swift; sourceTree = "<group>"; };
+		B0B08A8B24C73848009F0215 /* ResourceSimilarity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResourceSimilarity.swift; sourceTree = "<group>"; };
 		B0BA0F792384062A00042775 /* UserInputSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserInputSettings.swift; sourceTree = "<group>"; };
 		B0CAC0EB23852B24002DBC55 /* WindowsActivitySettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowsActivitySettings.swift; sourceTree = "<group>"; };
 		B0CAC0ED23854484002DBC55 /* UserEfficiencySettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserEfficiencySettings.swift; sourceTree = "<group>"; };
@@ -451,6 +454,7 @@
 				B09DC4A623E970BA00845428 /* ResourceActivityQueries.swift */,
 				B04D4A3724A9DE9100FF9060 /* ResourceWindow.xib */,
 				B04D4A3A24A9DEBC00FF9060 /* ResourceWindowController.swift */,
+				B0B08A8B24C73848009F0215 /* ResourceSimilarity.swift */,
 			);
 			path = ResourceActivityTracker;
 			sourceTree = "<group>";
@@ -931,6 +935,7 @@
 				B09DC4BC23E97A7C00845428 /* EonilFSEventStreamEventFlags.swift in Sources */,
 				0D0245FB1BD1C5AE00213D2A /* AppConstants.swift in Sources */,
 				B9A310411EC5264E003B2470 /* PreferencesWindowController.swift in Sources */,
+				B0B08A8C24C73848009F0215 /* ResourceSimilarity.swift in Sources */,
 				0D0245F81BD1651300213D2A /* DatabaseController.swift in Sources */,
 				B09DC4B623E97A7C00845428 /* EonilFSEventStreamEvent.swift in Sources */,
 				B0A4006C23A7D60B0032035A /* MouseInput.swift in Sources */,
@@ -999,6 +1004,7 @@
 				B09DC4BD23E97A7C00845428 /* EonilFSEventStreamEventFlags.swift in Sources */,
 				B01259B6238C169E00A7F0A9 /* AppConstants.swift in Sources */,
 				B01259B7238C169E00A7F0A9 /* PreferencesWindowController.swift in Sources */,
+				B0B08A8D24C73848009F0215 /* ResourceSimilarity.swift in Sources */,
 				B01259B8238C169E00A7F0A9 /* DatabaseController.swift in Sources */,
 				B09DC4B723E97A7C00845428 /* EonilFSEventStreamEvent.swift in Sources */,
 				B0A4006D23A7D60B0032035A /* MouseInput.swift in Sources */,

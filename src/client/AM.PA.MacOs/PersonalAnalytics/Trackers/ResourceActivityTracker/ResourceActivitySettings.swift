@@ -13,4 +13,12 @@ enum ResourceActivitySettings {
     static let DbTableApplicationResource = "resource_application"
     static let Name = "ResourceActivityTracker"
     static let SimilarityTreshold:Float = 0.6
+    static let WindowSize = 3
+    static let RefreshRate = 5.0 * 60.0 // 5min
+    
+    static let ManualInterventionFile = "manual-interventions.txt"
+    static let TokenFile = "tokens.txt"
+    static let AnonTokenFile = "anonymous-tokens.txt"
+    static let TokenSequenceFile = "token-sequence.txt"
+    static let EmbeddingsFile = "embeddings.txt"
 }

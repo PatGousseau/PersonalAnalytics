@@ -122,60 +122,120 @@ class ResourceWindowController: NSWindowController {
     @IBOutlet weak var associatedResourcesCountTextField: NSTextFieldCell!
     @IBOutlet weak var activeAppTextField: NSTextField!
     @IBOutlet weak var activeAppIcon: NSImageView!
+    @IBOutlet weak var toggleOnOffCheckbox: NSButton!
+    
+    @IBAction func onToggleOnOffCheck(_ sender: NSButton) {
+        if toggleOnOffCheckbox.state == .on {
+            turnRecommendationsOn()
+        } else {
+            turnRecommendationsOff()
+        }
+    }
     
     private var associatedResources: [AssociatedResource]?
     private var activeResource: String?
     private var currentActiveTableRow: Int = 0
-        
+    private(set) var isRecommendationEnabled = false
+    
     var delegate: ResourceControllerDelegate?
     
     override func windowDidLoad() {
         super.windowDidLoad()
-        
-        // if let window = window {
-        //     window.styleMask.remove(.titled)
-        //     window.styleMask.remove(.miniaturizable)
-        //     window.styleMask.remove(.resizable)
-        //     if let view = window.contentView {}
-        // }
         
         tableView.delegate = self
         tableView.dataSource = self
         
         tableView.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
         tableView.doubleAction = #selector(handleTableDoubleClick)
+        
+        if UserDefaults.standard.bool(forKey: "resourceRecommendationsEnabled") {
+            toggleOnOffCheckbox.state = .on
+            turnRecommendationsOn()
+        } else {
+            toggleOnOffCheckbox.state = .off
+            turnRecommendationsOff()
+        }
     }
     
     func forwardIntervention(activeResource: String, associatedResource: String, type: Intervention) {
         delegate?.handleIntervention(activeResource: activeResource, associatedResource: associatedResource, type: type)
         tableView.reloadData()
+        // programmatically set the selected row index to not jump back up to 0
         tableView.selectRowIndexes(NSIndexSet(index: currentActiveTableRow) as IndexSet, byExtendingSelection: false)
 
     }
         
-    @objc func show(_ sender: AnyObject) {
-        NSApp.activate(ignoringOtherApps: true)
+    func show() {
+        guard let w = self.window else {
+            return
+        }
+        // NSApp.activate(ignoringOtherApps: true)
+        // w.orderFrontRegardless()
+        w.level = .floating // keeps the window on top at all times
+        w.makeKeyAndOrderFront(self)
+        
+        // w.styleMask.remove(.titled)
+        // w.styleMask.remove(.miniaturizable)
+        // w.styleMask.remove(.resizable)
+        // if let view = w.contentView {}
+        
+        
         showWindow(self)
-        // self.window?.makeKeyAndOrderFront(self)
     }
     
-    func setActiveResource(activeResourcePath: String, activeAppName: String, activeAppIcon icon: NSImage?, associatedResources: [AssociatedResource]) {
-        if activeResourcePath == "" {
-            tableView.isHidden = true
-            activeResourceTextField.stringValue = "no resource active"
-            associatedResourcesCountTextField.stringValue = ""
-        } else {
-            tableView.isHidden = false
-            activeResourceTextField.stringValue = activeResourcePath
-            associatedResourcesCountTextField.stringValue = String(associatedResources.count) 
-        }
+    private func turnRecommendationsOff() {
+        isRecommendationEnabled = false
+        activeAppTextField.stringValue = ""
+        activeAppIcon.image = nil
+        tableView.isHidden = true
+        activeResourceTextField.stringValue = ""
+        toggleOnOffCheckbox.title = "enable"
         
+        UserDefaults.standard.set(false, forKey: "resourceRecommendationsEnabled")
+        
+        // removes old table entries which otherwise would show up
+        // once the recommandations are turned on again.
+        associatedResources?.removeAll()
+        tableView.reloadData()
+    }
+    
+    private func turnRecommendationsOn() {
+        isRecommendationEnabled = true
+        activeResourceTextField.stringValue = "unknown"
+        tableView.isHidden = false
+        toggleOnOffCheckbox.title = "disable"
+        
+        UserDefaults.standard.set(true, forKey: "resourceRecommendationsEnabled")
+    }
+            
+    func setActiveResource(activeResourcePath: String, activeAppName: String, activeAppIcon icon: NSImage?, associatedResources: [AssociatedResource]) {
+                
         activeAppTextField.stringValue = activeAppName
         activeAppIcon.image = icon
+        
+        if activeResourcePath == "" {
+            tableView.isHidden = true
+            activeResourceTextField.stringValue = "unknown"
+            return
+        }
+        
+        tableView.isHidden = false
+        activeResourceTextField.stringValue = activeResourcePath
+        
         
         self.associatedResources = associatedResources
         self.activeResource = activeResourcePath
         self.tableView.reloadData()
+    }
+    
+    func setLoadingResource(activeAppName: String, activeAppIcon icon: NSImage?) {
+        activeAppTextField.stringValue = activeAppName
+        activeAppIcon.image = icon
+        
+        activeResourceTextField.stringValue = "Loading..."
+        
+        associatedResources?.removeAll()
+        tableView.reloadData()
     }
     
     @objc func handleTableDoubleClick() {
