@@ -106,7 +106,8 @@ extension ResourceWindowController: NSTableViewDelegate, InterventionDelegate {
             }
         } else if tableColumn == tableView.tableColumns[2] {
             if let cell = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier(rawValue: CellIdentifiers.PathCell), owner: nil) as? NSTableCellView {
-                cell.textField?.stringValue = resource.path
+                cell.textField?.stringValue = getShortPath(resourcePath: resource.path)
+                cell.imageView?.image = getFileIcon(resourcePath: resource.path)
                 return cell
             }
         }
@@ -136,6 +137,7 @@ class ResourceWindowController: NSWindowController {
     private var activeResource: String?
     private var currentActiveTableRow: Int = 0
     private(set) var isRecommendationEnabled = false
+    private var browserIcon: NSImage?
     
     var delegate: ResourceControllerDelegate?
     
@@ -183,6 +185,34 @@ class ResourceWindowController: NSWindowController {
         showWindow(self)
     }
     
+    private func getFileIcon(resourcePath: String) -> NSImage? {
+        guard let url = URL(string: resourcePath) else {
+            return NSWorkspace.shared.icon(forFile: "") // this will show the empty page icon
+        }
+        
+        if url.isFileURL {
+            return NSWorkspace.shared.icon(forFile: url.relativePath)
+        }
+        
+        return browserIcon
+    }
+    
+    private func getShortPath(resourcePath: String) -> String {
+        guard let url = URL(string: resourcePath) else {
+            return resourcePath
+        }
+        
+        if url.isFileURL {
+            return url.relativePath.replacingOccurrences(of: NSHomeDirectory(), with: "")
+        }
+        
+        var path = url.absoluteString.replacingOccurrences(of: "http://www.", with: "")
+        path = path.replacingOccurrences(of: "https://www.", with: "")
+        path = path.replacingOccurrences(of: "http://", with: "")
+        path = path.replacingOccurrences(of: "https://", with: "")
+        return path
+    }
+    
     private func turnRecommendationsOff() {
         isRecommendationEnabled = false
         activeAppTextField.stringValue = ""
@@ -208,7 +238,7 @@ class ResourceWindowController: NSWindowController {
         UserDefaults.standard.set(true, forKey: "resourceRecommendationsEnabled")
     }
             
-    func setActiveResource(activeResourcePath: String, activeAppName: String, activeAppIcon icon: NSImage?, associatedResources: [AssociatedResource]) {
+    func setActiveResource(activeResourcePath: String, activeAppName: String, activeAppIcon icon: NSImage?, associatedResources: [AssociatedResource], browserIcon: NSImage?) {
                 
         activeAppTextField.stringValue = activeAppName
         activeAppIcon.image = icon
@@ -220,11 +250,11 @@ class ResourceWindowController: NSWindowController {
         }
         
         tableView.isHidden = false
-        activeResourceTextField.stringValue = activeResourcePath
-        
+        activeResourceTextField.stringValue = getShortPath(resourcePath: activeResourcePath)
         
         self.associatedResources = associatedResources
         self.activeResource = activeResourcePath
+        self.browserIcon = browserIcon
         self.tableView.reloadData()
     }
     

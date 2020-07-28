@@ -11,10 +11,14 @@ import Quartz
 
 
 // TODO:
+// sort results - maybe by tf-idf
+// indicate similarity-level with green yellow orange red
+// website preview tile
+// caching of calculated similarities
 // better design of window and buttons
 // error handling --> CSVError
-// loading new website should trigger app or resource change
-// how to open window
+// let users change their voting
+// how to open window??
 // onAppChange, filter dissimilar resources, stick📍 similar resources
 
 
@@ -31,18 +35,19 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
     
     var name = ResourceActivitySettings.Name
     var isRunning = true
-    var windowContoller = ResourceWindowController(windowNibName: NSNib.Name(rawValue: "ResourceWindow"))
-    var tokenMap = [String: Int]() // www.google.com : 2
-    var invTokenMap = [Int: String]() // 2 : www.google.com
-    var chunkMap = [String: String]() // pathChunk : randomStr
-    var interventionMap = [Set<Int>: Intervention]()  // {token1, token2}: 0 (dissim)
-    var embeddings: [[Float]]? // embeddings learned with resource2vec or from co-occurrence matrix
-    var sequence = [Int]() // sequence of tokens
-    var freqCounts = [Int]() // #occurences of a token in the sequence
-    var cooccurrences = [[Int]]() // co-occurrence matrix
+    private var windowContoller = ResourceWindowController(windowNibName: NSNib.Name(rawValue: "ResourceWindow"))
+    private var tokenMap = [String: Int]() // www.google.com : 2
+    private var invTokenMap = [Int: String]() // 2 : www.google.com
+    private var chunkMap = [String: String]() // pathChunk : randomStr
+    private var interventionMap = [Set<Int>: Intervention]()  // {token1, token2}: 0 (dissim)
+    private var embeddings: [[Float]]? // embeddings learned with resource2vec or from co-occurrence matrix
+    private var sequence = [Int]() // sequence of tokens
+    private var freqCounts = [Int]() // #occurences of a token in the sequence
+    private var cooccurrences = [[Int]]() // co-occurrence matrix
     
+    private var browserIcon: NSImage? // TODO: this is a hack here, can we get the default browser app icon?
     
-    lazy var supportDir: URL = {
+    private lazy var supportDir: URL = {
         let urls = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
         let appSupportURL = urls[urls.count - 1]
         return appSupportURL.appendingPathComponent(Environment.appSupportDir)
@@ -65,7 +70,7 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         }
     }
     
-    // this happens of the main queue
+    // this happens off the main queue
     private func refreshData(qos: DispatchQoS.QoSClass) {
         DispatchQueue.global(qos: qos).async { [weak self] in
             guard let self = self else {
@@ -75,7 +80,7 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
             do {
                 self.interventionMap = try self.readManualInterventions()
                 (self.tokenMap, self.invTokenMap, self.sequence, self.freqCounts) = try self.writeTokenMapsFromSQLite()
-                self.cooccurrences = self.buildCoocurrenceMatrix(sequence: self.sequence, frequencyCounts: self.freqCounts)
+                self.cooccurrences = self.buildCooccurrenceMatrix(sequence: self.sequence, frequencyCounts: self.freqCounts)
                 
                 self.embeddings = self.cooccurrences.map { $0.map { Float($0) } }
                 // self.embeddings = try self.readEmbeddingsFromDisk()
@@ -92,13 +97,13 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         }
     }
 
-    private func buildCoocurrenceMatrix(sequence seq: [Int], frequencyCounts freq: [Int]) -> [[Int]] {
+    private func buildCooccurrenceMatrix(sequence seq: [Int], frequencyCounts freq: [Int]) -> [[Int]] {
         var C = Array(repeating: Array(repeating: 0, count: freq.count), count: freq.count)
         
         for (i, token) in seq.enumerated() {
-            
-            let window_start = max(0, i-ResourceActivitySettings.WindowSize)
-            let window_end = min(seq.count, i+ResourceActivitySettings.WindowSize+1)
+            let ws = ResourceActivitySettings.WindowSize
+            let window_start = max(0, i-ws)
+            let window_end = min(seq.count-1, i+ws+1)
             
             for j in window_start...window_end {
                 C[token][seq[j]] += 1
@@ -405,6 +410,7 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
             let appName = activeApp.localizedName ?? ""
             var resourcePath: String
             if appName == "Google Chrome" || appName == "Safari" {
+                browserIcon = activeApp.icon
                 resourcePath = getWebsiteOfActiveBrowser(appName)
             } else {
                 resourcePath = getResourceOfActiveApplication(activeApp: activeApp)
@@ -439,7 +445,7 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
                 
                 // do the UI stuff on the queue as advised
                 DispatchQueue.main.async { [weak self] in
-                    self?.windowContoller.setActiveResource(activeResourcePath: resourcePath, activeAppName: appName, activeAppIcon: activeApp.icon, associatedResources: associatedResources)
+                    self?.windowContoller.setActiveResource(activeResourcePath: resourcePath, activeAppName: appName, activeAppIcon: activeApp.icon, associatedResources: associatedResources, browserIcon: self?.browserIcon)
                 }
             }
         }
