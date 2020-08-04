@@ -23,15 +23,12 @@ enum InterventionStatus {
 class AssociatedResource {
     let path: String
     var status: InterventionStatus
+    var similarity: Float
     
-    init(path: String) {
+    init(path: String, similarity: Float) {
         self.path = path
         self.status = .open
-    }
-    
-    init(path: String, status: InterventionStatus) {
-        self.path = path
-        self.status = status
+        self.similarity = similarity
     }
 }
     
@@ -73,7 +70,8 @@ extension ResourceWindowController: NSTableViewDelegate, InterventionDelegate {
     
     fileprivate enum CellIdentifiers {
         static let SimCell = "SimCellID"
-        static let DissimCell = "DissimCellID"
+        static let SimInterventionCell = "SimInterventionCellID"
+        static let DissimInterventionCell = "DissimInterventionCellID"
         static let PathCell = "PathCellID"
     }
     
@@ -86,7 +84,13 @@ extension ResourceWindowController: NSTableViewDelegate, InterventionDelegate {
         
         // populate data
         if tableColumn == tableView.tableColumns[0] {
-            if let cell = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier(rawValue: CellIdentifiers.SimCell), owner: nil) as? InterventionCellView {
+                if let cell = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier(rawValue: CellIdentifiers.SimCell), owner: nil) as? NSTableCellView {
+                    print(resource.similarity)
+                    cell.textField?.stringValue = String(format: "%.2f", resource.similarity)
+                    return cell
+                }
+        } else if tableColumn == tableView.tableColumns[1] {
+            if let cell = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier(rawValue: CellIdentifiers.SimInterventionCell), owner: nil) as? InterventionCellView {
                 cell.button?.activeResourcePath = activeResource!
                 cell.button?.associatedResource = resource
                 cell.button?.intervention = .similar
@@ -95,8 +99,8 @@ extension ResourceWindowController: NSTableViewDelegate, InterventionDelegate {
                 cell.delegate = self
                 return cell
             }
-        } else if tableColumn == tableView.tableColumns[1] {
-            if let cell = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier(rawValue: CellIdentifiers.DissimCell), owner: nil) as? InterventionCellView {
+        } else if tableColumn == tableView.tableColumns[2] {
+            if let cell = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier(rawValue: CellIdentifiers.DissimInterventionCell), owner: nil) as? InterventionCellView {
                 cell.button?.activeResourcePath = activeResource!
                 cell.button?.associatedResource = resource
                 cell.button?.intervention = .dissimilar
@@ -105,7 +109,7 @@ extension ResourceWindowController: NSTableViewDelegate, InterventionDelegate {
                 cell.delegate = self
                 return cell
             }
-        } else if tableColumn == tableView.tableColumns[2] {
+        } else if tableColumn == tableView.tableColumns[3] {
             if let cell = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier(rawValue: CellIdentifiers.PathCell), owner: nil) as? NSTableCellView {
                 cell.textField?.stringValue = getShortPath(resourcePath: resource.path)
                 cell.imageView?.image = getFileIcon(resourcePath: resource.path)
@@ -121,7 +125,6 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
     // MARK: IBOutlets
     @IBOutlet weak var tableView: NSTableView!
     @IBOutlet weak var activeResourceTextField: NSTextFieldCell!
-    @IBOutlet weak var associatedResourcesCountTextField: NSTextFieldCell!
     @IBOutlet weak var activeAppIcon: NSImageView!
     @IBOutlet weak var toggleOnOffCheckbox: NSButton!
     

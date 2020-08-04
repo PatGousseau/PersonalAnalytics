@@ -18,7 +18,6 @@ enum ResourceActivitySettings {
     
     static let ManualInterventionFile = "manual-interventions.txt"
     static let InteractionLog = "interaction-log.txt"
-    static let TokenFile = "token.txt"
     static let AnonTokenFile = "token-anonymous.txt"
     static let TokenSequenceFile = "token-sequence.txt"
     static let EmbeddingsFile = "embeddings.txt"

@@ -9,18 +9,16 @@ import Foundation
 import CoreGraphics
 import Quartz
 
-
-// TODO:
+// USEFUL
 // https://stackoverflow.com/questions/54575962/why-does-nstextfield-with-usessinglelinemode-set-to-yes-has-intrinsic-content-si
 // https://fluffy.es/how-auto-layout-calculates-view-position-and-size/
-// sort results - maybe by tf-idf
-// indicate similarity-level with green yellow orange red
+
+// TODO
 // website preview tile
 // caching of calculated similarities
 // better design of window and buttons
 // error handling --> CSVError
 // let users change their voting
-// how to open window??
 // onAppChange, filter dissimilar resources, stick📍 similar resources
 
 
@@ -49,7 +47,7 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
     private var tokenMap = [String: Int]() // www.google.com : 2
     private var invTokenMap = [Int: String]() // 2 : www.google.com
     private var chunkMap = [String: String]() // pathChunk : randomStr
-    private var interventionMap = [Set<Int>: Intervention]()  // {token1, token2}: 0 (dissim)
+    private var interventionMap = [Set<Int>: Intervention]()  // {token1, token2}: 0 (dissimilar)
     private var embeddings: [[Float]]? // embeddings learned with resource2vec or from co-occurrence matrix
     private var sequence = [Int]() // sequence of tokens
     private var freqCounts = [Int]() // #occurences of a token in the sequence
@@ -141,9 +139,9 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
                 let t2 = Int(splitted[2].trimmingCharacters(in: .whitespaces))!
                 let set:Set = [t1, t2]
                 var intervention: Intervention
-                if i == "dissim" {
+                if i == "d" {
                     intervention = .dissimilar
-                } else if i == "sim" {
+                } else if i == "s" {
                     intervention = .similar
                 } else {
                     throw CSVError.parseError("unknown intervention")
@@ -196,9 +194,9 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         
         switch type {
         case .similar:
-            str += "sim" + resources + "\n"
+            str += "s" + resources + "\n"
         case .dissimilar:
-            str += "dissim" + resources + "\n"
+            str += "d" + resources + "\n"
         }
                 
         try appendToFile(fileUrl: fileURL, string: str)
@@ -308,14 +306,16 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         
         do {
             let sequenceURL = supportDir.appendingPathComponent(ResourceActivitySettings.TokenSequenceFile)
-            let tokensURL = supportDir.appendingPathComponent(ResourceActivitySettings.TokenFile)
             let anonTokensURL = supportDir.appendingPathComponent(ResourceActivitySettings.AnonTokenFile)
             
-            let tokens = [String](tokenMap.map { return String($1) + "," + $0 })
             let anonTokens = [String](anonTokenMap.map { return String($1) + "," + $0 })
-            try seq.write(to: sequenceURL, atomically: true, encoding: String.Encoding.utf8)
-            try tokens.joined(separator: "\n").write(to: tokensURL, atomically: true, encoding: String.Encoding.utf8)
             try anonTokens.joined(separator: "\n").write(to: anonTokensURL, atomically: true, encoding: String.Encoding.utf8)
+            
+            // let tokens = [String](tokenMap.map { return String($1) + "," + $0 })
+            // try tokens.joined(separator: "\n").write(to: tokensURL, atomically: true, encoding: String.Encoding.utf8)
+            
+            try seq.write(to: sequenceURL, atomically: true, encoding: String.Encoding.utf8)
+            
         } catch let error as NSError {
             print(error)
         }
@@ -389,7 +389,8 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         return embeddings
     }
     
-    private func getSimilarResourcePaths(to path: String) -> [String]? {
+    private func getSimilarResources(to path: String) -> [AssociatedResource]? {
+        
         if let token = tokenMap[path] {
             if let embeddings = self.embeddings {
                 if token >= embeddings.count {
@@ -397,14 +398,14 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
                     return nil
                 }
                 let activeEmbedding = embeddings[token]
-                var similarResources = [String]()
+                var similarResources = [AssociatedResource]()
                 for (i, embedding) in embeddings.enumerated() {
                     if i == token { continue }                  
                     let thresh = ResourceActivitySettings.SimilarityTreshold
                     let similarity = Similarity.calc(vector: embedding, other: activeEmbedding)
                     if similarity > thresh {
                         if let path = invTokenMap[i] {
-                            similarResources.append(path)
+                            similarResources.append( AssociatedResource(path: path, similarity: similarity))
                         }
                         else {
                             print("no path for token", i)
@@ -519,8 +520,9 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
                     return
                 }
                 
-                let associatedResourcePaths = self.getSimilarResourcePaths(to: resourcePath) ?? []
-                let associatedResources = self.toAssociatedResources(associatedResourcePaths: associatedResourcePaths, activeResourcePath: resourcePath)
+                var associatedResources = self.getSimilarResources(to: resourcePath) ?? []
+                associatedResources = self.augmentInterventionStatus(activeResourcePath: resourcePath, associatedResources: associatedResources)
+                associatedResources = associatedResources.sorted(by: { $0.similarity > $1.similarity })
                 
                 // do the UI stuff on the queue as advised
                 DispatchQueue.main.async { [weak self] in
@@ -530,19 +532,18 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         }
     }
     
-    private func toAssociatedResources(associatedResourcePaths: [String], activeResourcePath: String) -> [AssociatedResource] {
-        return associatedResourcePaths.map({ (r: String) -> AssociatedResource in
-            let set: Set<Int> = [(tokenMap[r] ?? -1), tokenMap[activeResourcePath] ?? -1]
+    private func augmentInterventionStatus(activeResourcePath: String, associatedResources: [AssociatedResource]) -> [AssociatedResource] {
+        return associatedResources.map({ (r: AssociatedResource) -> AssociatedResource in
+            let set: Set<Int> = [(tokenMap[r.path] ?? -1), tokenMap[activeResourcePath] ?? -1]
             if let intervention = interventionMap[set] {
                 if intervention == .similar {
-                    return AssociatedResource(path: r, status: .confirmedSimilar)
+                    r.status = .confirmedSimilar
                 }
                 else if intervention == .dissimilar {
-                    return AssociatedResource(path: r, status: .confirmedDissimilar)
+                    r.status = .confirmedDissimilar
                 }
-                
             }
-            return AssociatedResource(path: r)
+            return r
         })
     }
     
