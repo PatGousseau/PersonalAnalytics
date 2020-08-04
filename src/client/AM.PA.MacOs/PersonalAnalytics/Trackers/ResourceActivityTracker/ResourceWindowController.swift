@@ -122,7 +122,6 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
     @IBOutlet weak var tableView: NSTableView!
     @IBOutlet weak var activeResourceTextField: NSTextFieldCell!
     @IBOutlet weak var associatedResourcesCountTextField: NSTextFieldCell!
-    @IBOutlet weak var activeAppTextField: NSTextField!
     @IBOutlet weak var activeAppIcon: NSImageView!
     @IBOutlet weak var toggleOnOffCheckbox: NSButton!
     
@@ -222,7 +221,6 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
     
     private func turnRecommendationsOff() {
         isRecommendationEnabled = false
-        activeAppTextField.stringValue = ""
         activeAppIcon.image = nil
         tableView.isHidden = true
         activeResourceTextField.stringValue = ""
@@ -245,9 +243,8 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
         UserDefaults.standard.set(true, forKey: "resourceRecommendationsEnabled")
     }
             
-    func setActiveResource(activeResourcePath: String, activeAppName: String, activeAppIcon icon: NSImage?, associatedResources: [AssociatedResource], browserIcon: NSImage?) {
+    func setActiveResource(activeResourcePath: String, activeAppIcon icon: NSImage?, associatedResources: [AssociatedResource], browserIcon: NSImage?) {
                 
-        activeAppTextField.stringValue = activeAppName
         activeAppIcon.image = icon
         
         if activeResourcePath == "" {
@@ -265,8 +262,7 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
         self.tableView.reloadData()
     }
     
-    func setLoadingResource(activeAppName: String, activeAppIcon icon: NSImage?) {
-        activeAppTextField.stringValue = activeAppName
+    func setLoadingResource(activeAppIcon icon: NSImage?) {
         activeAppIcon.image = icon
         
         activeResourceTextField.stringValue = "Loading..."

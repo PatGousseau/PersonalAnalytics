@@ -510,7 +510,7 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
             }
             
             // indicate loading while similarities are processed
-            windowContoller.setLoadingResource(activeAppName: appName, activeAppIcon: activeApp.icon)
+            windowContoller.setLoadingResource(activeAppIcon: activeApp.icon)
             
             // maybe something for the future if the user switches apps very quickly
             // https://jordansmith.io/cancelling-background-tasks/
@@ -524,7 +524,7 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
                 
                 // do the UI stuff on the queue as advised
                 DispatchQueue.main.async { [weak self] in
-                    self?.windowContoller.setActiveResource(activeResourcePath: resourcePath, activeAppName: appName, activeAppIcon: activeApp.icon, associatedResources: associatedResources, browserIcon: self?.browserIcon)
+                    self?.windowContoller.setActiveResource(activeResourcePath: resourcePath, activeAppIcon: activeApp.icon, associatedResources: associatedResources, browserIcon: self?.browserIcon)
                 }
             }
         }
