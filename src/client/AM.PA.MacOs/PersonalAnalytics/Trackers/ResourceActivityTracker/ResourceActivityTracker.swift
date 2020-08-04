@@ -45,7 +45,7 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
     
     var name = ResourceActivitySettings.Name
     var isRunning = true
-    private var windowContoller = ResourceWindowController(windowNibName: NSNib.Name(rawValue: "ResourceWindow"))
+    var windowContoller = ResourceWindowController(windowNibName: NSNib.Name(rawValue: "ResourceWindow"))
     private var tokenMap = [String: Int]() // www.google.com : 2
     private var invTokenMap = [Int: String]() // 2 : www.google.com
     private var chunkMap = [String: String]() // pathChunk : randomStr
@@ -423,12 +423,12 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
     
     func stop() {
         isRunning = false
-        EonilFSEvents.stopWatching(for: ObjectIdentifier(self))
+        // EonilFSEvents.stopWatching(for: ObjectIdentifier(self))
     }
     
     func start() {
         isRunning = true
-        trackFSEvents()
+        // trackFSEvents()
     }
     
     func createDatabaseTablesIfNotExist() {

@@ -25,7 +25,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSUserNotificationCenterDele
     // MARK: - Menu Bar & Controllers
     let menu = MenuBar()
     let preferencesController = PreferencesWindowController(windowNibName: NSNib.Name(rawValue: "PreferencesWindow"))
-    let retrospectiveController = RetrospectiveWindowController(windowNibName:NSNib.Name(rawValue: "RetrospectiveWindow"))
+    let retrospectiveController = RetrospectiveWindowController(windowNibName: NSNib.Name(rawValue: "RetrospectiveWindow"))
     
     
     // MARK: - Variables
@@ -74,6 +74,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSUserNotificationCenterDele
         NSApp.activate(ignoringOtherApps: true)
         preferencesController.window?.makeKeyAndOrderFront(self)
         preferencesController.window?.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.floatingWindow)))
+    }
+    
+    func showResourceRecommendations() {
+        let tracker = TrackerManager.shared.getTracker(tracker: "ResourceActivityTracker") as! ResourceActivityTracker
+        tracker.windowContoller.show()
     }
     
     
