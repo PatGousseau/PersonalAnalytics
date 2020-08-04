@@ -17,8 +17,9 @@ enum ResourceActivitySettings {
     static let RefreshRate = 5.0 * 60.0 // 5min
     
     static let ManualInterventionFile = "manual-interventions.txt"
-    static let TokenFile = "tokens.txt"
-    static let AnonTokenFile = "anonymous-tokens.txt"
+    static let InteractionLog = "interaction-log.txt"
+    static let TokenFile = "token.txt"
+    static let AnonTokenFile = "token-anonymous.txt"
     static let TokenSequenceFile = "token-sequence.txt"
     static let EmbeddingsFile = "embeddings.txt"
 }

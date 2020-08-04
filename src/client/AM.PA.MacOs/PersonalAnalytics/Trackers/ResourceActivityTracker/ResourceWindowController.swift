@@ -59,10 +59,11 @@ protocol InterventionDelegate: AnyObject {
 
 protocol ResourceControllerDelegate: AnyObject {
     func handleIntervention(activeResource: String, associatedResource: String, type: Intervention)
+    func handleResourceOpened(activeResource: String, associatedResource: String, type: Interaction)
+    func handleWindowInteraction(type:Interaction)
 }
 
 extension ResourceWindowController: NSTableViewDataSource {
-    
     func numberOfRows(in tableView: NSTableView) -> Int {
         return associatedResources?.count ?? 0
     }
@@ -115,7 +116,7 @@ extension ResourceWindowController: NSTableViewDelegate, InterventionDelegate {
     }
 }
 
-class ResourceWindowController: NSWindowController {
+class ResourceWindowController: NSWindowController, NSWindowDelegate {
     
     // MARK: IBOutlets
     @IBOutlet weak var tableView: NSTableView!
@@ -157,6 +158,12 @@ class ResourceWindowController: NSWindowController {
             toggleOnOffCheckbox.state = .off
             turnRecommendationsOff()
         }
+        
+        delegate?.handleWindowInteraction(type: .openedRecommenderWindow)
+    }
+    
+    func windowWillClose(_ notification: Notification) {
+        delegate?.handleWindowInteraction(type: .closedRecommenderWindow)
     }
     
     func forwardIntervention(activeResource: String, associatedResource: String, type: Intervention) {
@@ -279,6 +286,8 @@ class ResourceWindowController: NSWindowController {
                 NSWorkspace.shared.open(url)
             }
         }
+        
+        delegate?.handleResourceOpened(activeResource: activeResource!, associatedResource: resource.path, type: .openedResource)
     }
     
     override func keyDown(with event: NSEvent) {

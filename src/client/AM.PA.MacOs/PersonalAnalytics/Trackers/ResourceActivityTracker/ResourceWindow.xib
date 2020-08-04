@@ -24,9 +24,9 @@
             <rect key="screenRect" x="0.0" y="0.0" width="2560" height="1417"/>
             <value key="minSize" type="size" width="300" height="207"/>
             <value key="maxSize" type="size" width="800" height="270"/>
-            <view key="contentView" autoresizesSubviews="NO" misplaced="YES" id="Up9-u7-hRB">
+            <view key="contentView" autoresizesSubviews="NO" id="Up9-u7-hRB">
                 <rect key="frame" x="0.0" y="0.0" width="513" height="270"/>
-                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES" heightSizable="YES" flexibleMaxY="YES"/>
+                <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                 <subviews>
                     <textField horizontalHuggingPriority="249" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" allowsExpansionToolTips="YES" textCompletion="NO" translatesAutoresizingMaskIntoConstraints="NO" id="VOm-Xu-tyh" userLabel="ActiveResourceName">
                         <rect key="frame" x="18" y="214" width="397" height="16"/>
@@ -43,7 +43,7 @@
                         </constraints>
                         <buttonCell key="cell" type="bevel" title="enable" bezelStyle="regularSquare" imagePosition="leading" alignment="center" borderStyle="border" inset="2" id="aFw-Hx-2yF">
                             <behavior key="behavior" pushIn="YES" changeContents="YES" lightByContents="YES"/>
-                            <font key="font" metaFont="message" size="11"/>
+                            <font key="font" metaFont="label" size="11"/>
                         </buttonCell>
                         <connections>
                             <action selector="onToggleOnOffCheck:" target="-2" id="5Qg-Qd-YPY"/>
@@ -228,6 +228,9 @@
                     <constraint firstItem="toC-nq-vkE" firstAttribute="top" secondItem="Up9-u7-hRB" secondAttribute="top" constant="40" id="yAH-nD-XtS"/>
                 </constraints>
             </view>
+            <connections>
+                <outlet property="delegate" destination="-2" id="5Qk-c5-vdH"/>
+            </connections>
             <point key="canvasLocation" x="69" y="-114"/>
         </window>
     </objects>

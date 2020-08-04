@@ -11,6 +11,8 @@ import Quartz
 
 
 // TODO:
+// https://stackoverflow.com/questions/54575962/why-does-nstextfield-with-usessinglelinemode-set-to-yes-has-intrinsic-content-si
+// https://fluffy.es/how-auto-layout-calculates-view-position-and-size/
 // sort results - maybe by tf-idf
 // indicate similarity-level with green yellow orange red
 // website preview tile
@@ -29,6 +31,14 @@ enum CSVError: Error {
 enum Intervention: Equatable {
     case similar
     case dissimilar
+}
+
+enum Interaction: Equatable {
+    case setSimilar
+    case setDissimilar
+    case openedResource
+    case openedRecommenderWindow
+    case closedRecommenderWindow
 }
 
 class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
@@ -57,9 +67,8 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(self.onActiveApplicationChange(_:)), name: NSNotification.Name(rawValue: "activeApplicationChange"), object: nil)
         
         // trackFSEvents()
-        
-        windowContoller.show()
         windowContoller.delegate = self
+        windowContoller.show()
         
         // when the app is started, hurry up and get the data
         refreshData(qos: .userInitiated)
@@ -162,7 +171,12 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
                 }
             } else {
                 interventionMap[set] = type
-                try writeManualInterventions()
+                try writeManualInterventions(set: set, type: type)
+                if type == .dissimilar {
+                    try writeInteractionToLog(activeToken: activeToken, associatedToken: associatedToken, type: .setDissimilar)
+                } else {
+                    try writeInteractionToLog(activeToken: activeToken, associatedToken: associatedToken, type: .setSimilar)
+                }
             }
         }  catch CSVError.parseError(let msg) {
             print(msg)
@@ -173,28 +187,93 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         }
     }
     
-    private func writeManualInterventions() throws {
+    private func writeManualInterventions(set: Set<Int>, type: Intervention) throws {
         let fileURL = supportDir.appendingPathComponent(ResourceActivitySettings.ManualInterventionFile)
         
         var str = ""
-        for (resourceSet, type) in interventionMap {
-            // produces ",/test.txt,google.com"
-            let resources = resourceSet.reduce("", { s, r in s + "," + String(r) })
+        // produces ",1,8"
+        let resources = set.reduce("", { s, r in s + "," + String(r) })
+        
+        switch type {
+        case .similar:
+            str += "sim" + resources + "\n"
+        case .dissimilar:
+            str += "dissim" + resources + "\n"
+        }
+                
+        try appendToFile(fileUrl: fileURL, string: str)
+    }
+    
+    private func appendToFile(fileUrl: URL, string: String) throws{
+        let data = string.data(using: .utf8, allowLossyConversion: false)!
             
-            switch type {
-                case .similar:
-                    str += "sim" + resources + "\n"
-                case .dissimilar:
-                    str += "dissim" + resources + "\n"
+        if FileManager.default.fileExists(atPath: fileUrl.path) {
+            if let fileHandle = try? FileHandle(forUpdating: fileUrl) {
+                fileHandle.seekToEndOfFile()
+                fileHandle.write(data)
+                fileHandle.closeFile()
+            } else {
+                print("failed to append to file")
+                assert(false)
             }
         }
-                           
-        try str.write(to: fileURL, atomically: true, encoding: String.Encoding.utf8)
     }
-
+    
+    internal func handleResourceOpened(activeResource: String, associatedResource: String, type: Interaction) {
+        assert(type == .openedResource)
+        
+        let act = tokenMap[activeResource]
+        let ast = tokenMap[associatedResource]
+        
+        do {
+            try writeInteractionToLog(activeToken: act, associatedToken: ast, type: .openedResource)
+        } catch let error as NSError {
+            print("Failed to read file")
+            print(error)
+        }
+    }
+    
+    internal func handleWindowInteraction(type: Interaction) {
+        assert(type == .closedRecommenderWindow || type == .openedRecommenderWindow)
+        do {
+            try writeInteractionToLog(activeToken: nil, associatedToken: nil, type: type)
+        } catch let error as NSError {
+            print("Failed to read file")
+            print(error)
+        }
+    }
+    
+    private func writeInteractionToLog(activeToken: Int?, associatedToken: Int?, type: Interaction) throws {
+        let fileURL = supportDir.appendingPathComponent(ResourceActivitySettings.InteractionLog)
+        let d = DateFormatConverter.dateToStr(date: Date())
+        
+        var str = "[\(d)] "
+        
+        if let atoken = activeToken {
+            str += "active \(String(atoken)) - "
+        }
+        
+        switch type {
+        case .openedRecommenderWindow:
+            str += "opened recommender window"
+        case .closedRecommenderWindow:
+            str += "closed recommender window"
+        case .setSimilar:
+            str += "set similarity to \(String(associatedToken!))"
+        case .setDissimilar:
+            str += "set dissimilarity to \(String(associatedToken!))"
+        case .openedResource:
+            str += "opened resource \(String(associatedToken!))"
+        }
+        
+        str += "\n"
+        
+        try appendToFile(fileUrl: fileURL, string: str)
+    }
+    
     private func writeTokenMapsFromSQLite() throws -> ([String: Int], [Int: String], [Int], [Int]) {
         let dbController = DatabaseController.getDatabaseController()
-        let rows = try dbController.executeFetchAll(query: "SELECT path FROM resource_application")
+        let rows = try dbController.executeFetchAll(query: "SELECT path FROM resource_application ORDER BY time")
         
         var anonTokenMap = [String:Int]()
         var seq = ""
