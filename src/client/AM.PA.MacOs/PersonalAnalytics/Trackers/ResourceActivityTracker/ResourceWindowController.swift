@@ -85,8 +85,13 @@ extension ResourceWindowController: NSTableViewDelegate, InterventionDelegate {
         // populate data
         if tableColumn == tableView.tableColumns[0] {
                 if let cell = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier(rawValue: CellIdentifiers.SimCell), owner: nil) as? NSTableCellView {
-                    print(resource.similarity)
-                    cell.textField?.stringValue = String(format: "%.2f", resource.similarity)
+                    if resource.status == .confirmedDissimilar {
+                        cell.textField?.stringValue = "-"
+                    } else if resource.status == .confirmedSimilar {
+                        cell.textField?.stringValue = "+"
+                    } else if resource.status == .open {
+                        cell.textField?.stringValue = String(format: "%.2f", resource.similarity)
+                    }
                     return cell
                 }
         } else if tableColumn == tableView.tableColumns[1] {
@@ -94,8 +99,8 @@ extension ResourceWindowController: NSTableViewDelegate, InterventionDelegate {
                 cell.button?.activeResourcePath = activeResource!
                 cell.button?.associatedResource = resource
                 cell.button?.intervention = .similar
-                cell.button?.isEnabled = resource.status == .open
-                cell.button?.isHidden = resource.status == .confirmedDissimilar
+                // cell.button?.isEnabled = resource.status == .open
+                // cell.button?.isHidden = resource.status == .confirmedDissimilar
                 cell.delegate = self
                 return cell
             }
@@ -104,8 +109,8 @@ extension ResourceWindowController: NSTableViewDelegate, InterventionDelegate {
                 cell.button?.activeResourcePath = activeResource!
                 cell.button?.associatedResource = resource
                 cell.button?.intervention = .dissimilar
-                cell.button?.isEnabled = resource.status == .open
-                cell.button?.isHidden = resource.status == .confirmedSimilar
+                // cell.button?.isEnabled = resource.status == .open
+                // cell.button?.isHidden = resource.status == .confirmedSimilar
                 cell.delegate = self
                 return cell
             }
@@ -137,6 +142,7 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
     }
     
     private var associatedResources: [AssociatedResource]?
+    private var allAssociatedResources: [AssociatedResource]?
     private var activeResource: String?
     private var currentActiveTableRow: Int = 0
     private(set) var isRecommendationEnabled = false
@@ -259,7 +265,8 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
         tableView.isHidden = false
         activeResourceTextField.stringValue = getShortPath(resourcePath: activeResourcePath)
         
-        self.associatedResources = associatedResources
+        self.associatedResources = associatedResources.filter { $0.status != .confirmedDissimilar }
+        self.allAssociatedResources = associatedResources
         self.activeResource = activeResourcePath
         self.browserIcon = browserIcon
         self.tableView.reloadData()

@@ -538,9 +538,11 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
             if let intervention = interventionMap[set] {
                 if intervention == .similar {
                     r.status = .confirmedSimilar
+                    r.similarity += 1
                 }
                 else if intervention == .dissimilar {
                     r.status = .confirmedDissimilar
+                    r.similarity -= 1
                 }
             }
             return r
