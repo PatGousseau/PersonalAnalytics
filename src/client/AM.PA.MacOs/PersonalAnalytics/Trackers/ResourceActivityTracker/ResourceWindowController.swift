@@ -132,6 +132,7 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
     @IBOutlet weak var activeResourceTextField: NSTextFieldCell!
     @IBOutlet weak var activeAppIcon: NSImageView!
     @IBOutlet weak var toggleOnOffCheckbox: NSButton!
+    @IBOutlet weak var toggleFilterCheckbox: NSButton!
     
     @IBAction func onToggleOnOffCheck(_ sender: NSButton) {
         if toggleOnOffCheckbox.state == .on {
@@ -139,6 +140,18 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
         } else {
             turnRecommendationsOff()
         }
+    }
+    
+    @IBAction func onToggleFilter(_ sender: Any) {
+        if toggleFilterCheckbox.state == .on {
+            toggleFilterCheckbox.title = "hide blocked"
+            associatedResources = allAssociatedResources
+        } else {
+            toggleFilterCheckbox.title = "show all"
+            associatedResources = allAssociatedResources?.filter { $0.status != .confirmedDissimilar }
+        }
+        
+        tableView.reloadData()
     }
     
     private var associatedResources: [AssociatedResource]?

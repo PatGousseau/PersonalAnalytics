@@ -29,7 +29,7 @@ class MenuBar {
         pauseItem = NSMenuItem(title: "Pause Trackers", action: #selector(delegate.togglePause), keyEquivalent: "u")
         let preferencesItem = NSMenuItem(title: "Preferences...", action: #selector(delegate.showPreferences), keyEquivalent: "P")
         let openDataItem = NSMenuItem(title: "Open Data Folder...", action: #selector(delegate.openDataFolder), keyEquivalent: "O")
-        let resourceRecommendationsItem = NSMenuItem(title: "Resource Recommendations", action: #selector(delegate.showResourceRecommendations), keyEquivalent: "P")
+        let resourceRecommendationsItem = NSMenuItem(title: "Show Context", action: #selector(delegate.showResourceRecommendations), keyEquivalent: "P")
         let checkUpdatesItem = NSMenuItem(title: "Check for Updates...", action: #selector(SUUpdater.checkForUpdates(_:)), keyEquivalent: "U")
         
         menu.addItem(retrospectiveItem)

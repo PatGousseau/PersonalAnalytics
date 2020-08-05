@@ -14,16 +14,27 @@ import Quartz
 // https://fluffy.es/how-auto-layout-calculates-view-position-and-size/
 
 // TODO
-// website preview tile
-// caching of calculated similarities
-// better design of window and buttons
+// website preview title
 // error handling --> CSVError
-// let users change their voting
-// onAppChange, filter dissimilar resources, stick📍 similar resources
 
-
-enum CSVError: Error {
+fileprivate enum CSVError: Error {
     case parseError(String)
+}
+
+fileprivate struct CachedSimScore {
+    var similarity: Float
+    var lastUpdate: Date
+    
+    init(similarity: Float) {
+        self.lastUpdate = Date()
+        self.similarity = similarity
+    }
+    
+    func isOutdated() -> Bool {
+        // 5 mins
+        let d = self.lastUpdate.addingTimeInterval(60*5)
+        return d < Date()
+    }
 }
 
 enum Intervention: Equatable {
@@ -52,6 +63,7 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
     private var sequence = [Int]() // sequence of tokens
     private var freqCounts = [Int]() // #occurences of a token in the sequence
     private var cooccurrences = [[Int]]() // co-occurrence matrix
+    private var simCache = [Set<Int>: CachedSimScore]()
     
     private var browserIcon: NSImage? // TODO: this is a hack here, can we get the default browser app icon?
     
@@ -390,7 +402,6 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
     }
     
     private func getSimilarResources(to path: String) -> [AssociatedResource]? {
-        
         if let token = tokenMap[path] {
             if let embeddings = self.embeddings {
                 if token >= embeddings.count {
@@ -402,7 +413,21 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
                 for (i, embedding) in embeddings.enumerated() {
                     if i == token { continue }                  
                     let thresh = ResourceActivitySettings.SimilarityTreshold
-                    let similarity = Similarity.calc(vector: embedding, other: activeEmbedding)
+                    var similarity:Float
+                    let set: Set<Int> = [token, i]
+                    
+                    if let cachedSim = simCache[set] {
+                        if !cachedSim.isOutdated() {
+                            similarity = cachedSim.similarity
+                        } else {
+                            similarity = Similarity.calc(vector: embedding, other: activeEmbedding)
+                            simCache[set] = CachedSimScore(similarity: similarity)
+                        }
+                    } else {
+                        similarity = Similarity.calc(vector: embedding, other: activeEmbedding)
+                        simCache[set] = CachedSimScore(similarity: similarity)
+                    }
+                    
                     if similarity > thresh {
                         if let path = invTokenMap[i] {
                             similarResources.append( AssociatedResource(path: path, similarity: similarity))

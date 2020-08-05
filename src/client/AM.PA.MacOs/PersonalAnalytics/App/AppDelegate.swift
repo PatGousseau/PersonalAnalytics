@@ -76,7 +76,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSUserNotificationCenterDele
         preferencesController.window?.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.floatingWindow)))
     }
     
-    func showResourceRecommendations() {
+    @objc func showResourceRecommendations() {
         let tracker = TrackerManager.shared.getTracker(tracker: "ResourceActivityTracker") as! ResourceActivityTracker
         tracker.windowContoller.show()
     }
