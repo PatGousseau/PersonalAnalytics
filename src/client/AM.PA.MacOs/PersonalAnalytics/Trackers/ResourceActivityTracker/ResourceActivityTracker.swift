@@ -9,16 +9,17 @@ import Foundation
 import CoreGraphics
 import Quartz
 
-// USEFUL
-// https://stackoverflow.com/questions/54575962/why-does-nstextfield-with-usessinglelinemode-set-to-yes-has-intrinsic-content-si
+// USEFUL URLS
 // https://fluffy.es/how-auto-layout-calculates-view-position-and-size/
+// https://github.com/eonil/FSEvents
+// https://jordansmith.io/cancelling-background-tasks/
+// https://www.appcoda.com/macos-programming-tableview/
+// https://stackoverflow.com/questions/54575962/why-does-nstextfield-with-usessinglelinemode-set-to-yes-has-intrinsic-content-si
 
-// TODO
-// website preview title
-// error handling --> CSVError
 
-fileprivate enum CSVError: Error {
-    case parseError(String)
+fileprivate enum ResourceFileError: Error {
+    case embeddings(String)
+    case intervention(String)
 }
 
 fileprivate struct CachedSimScore {
@@ -45,6 +46,8 @@ enum Intervention: Equatable {
 enum Interaction: Equatable {
     case setSimilar
     case setDissimilar
+    case switchToSimilar
+    case switchToDissimilar
     case openedResource
     case openedRecommenderWindow
     case closedRecommenderWindow
@@ -78,7 +81,6 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         
         // trackFSEvents()
         windowContoller.delegate = self
-        windowContoller.show()
         
         // when the app is started, hurry up and get the data
         refreshData(qos: .userInitiated)
@@ -104,14 +106,10 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
                 self.embeddings = self.cooccurrences.map { $0.map { Float($0) } }
                 // self.embeddings = try self.readEmbeddingsFromDisk()
             }
-            catch CSVError.parseError(let msg) {
-                print("Error:", msg)
-            }
-            catch let error as NSError {
-                print("Failed to read file")
+            catch {
                 print(error)
             }
-            
+         
             print("resource tracker metadata is refreshed.")
         }
     }
@@ -141,23 +139,35 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
                         
             let data = try String(contentsOf: fileURL)
             let rows = data.components(separatedBy: "\n")
-            for row in rows {
+            for (i, row) in rows.enumerated() {
                 if row.isEmpty {
                     continue;
                 }
+                
                 let splitted = row.split(separator: ",")
-                let i = splitted[0].trimmingCharacters(in: .whitespaces)
-                let t1 = Int(splitted[1].trimmingCharacters(in: .whitespaces))!
-                let t2 = Int(splitted[2].trimmingCharacters(in: .whitespaces))!
+                guard splitted.count == 3 else {
+                    throw ResourceFileError.intervention("\(fileURL.path) has \(splitted.count) columns. Should have 3.")
+                }
+                
+                guard let t1 = Int(splitted[1].trimmingCharacters(in: .whitespaces)) else {
+                    throw ResourceFileError.intervention("\(fileURL.path): cannot parse \"\(splitted[1])\" as Int on line \(i).")
+                }
+                guard let t2 = Int(splitted[2].trimmingCharacters(in: .whitespaces)) else {
+                    throw ResourceFileError.intervention("\(fileURL.path): cannot parse \"\(splitted[2])\" as Int on line \(i).")
+                }
+        
                 let set:Set = [t1, t2]
+                let itype = splitted[0].trimmingCharacters(in: .whitespaces)
                 var intervention: Intervention
-                if i == "d" {
+                
+                if itype == "d" {
                     intervention = .dissimilar
-                } else if i == "s" {
+                } else if itype == "s" {
                     intervention = .similar
                 } else {
-                    throw CSVError.parseError("unknown intervention")
+                    throw ResourceFileError.intervention("cannot parse \(fileURL.path). Unknown intervention type \"\(itype)\" on line \(i)")
                 }
+                
                 map[set] = intervention
             }
         }
@@ -174,35 +184,50 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
             
             if let interventionType = interventionMap[set] {
                 if type == interventionType {
-                    throw CSVError.parseError("intervention already exists")
+                    throw ResourceFileError.intervention("intervention for tokens \(set) already exists")
                 }
+                // user switches intervention to the opposite
                 else {
-                    throw CSVError.parseError("conflicting interventions")
+                    if type == .dissimilar {
+                        try writeInteractionToLog(activeToken: activeToken, associatedToken: associatedToken, type: .switchToDissimilar)
+                    } else {
+                        try writeInteractionToLog(activeToken: activeToken, associatedToken: associatedToken, type: .switchToSimilar)
+                    }
+                    
+                    interventionMap[set] = type // switches the type
+                    try rewriteManualInterventions()
                 }
-            } else {
+            }
+            // user sets a new intervention
+            else {
                 interventionMap[set] = type
-                try writeManualInterventions(set: set, type: type)
+                try appendManualIntervention(tokenSet: set, type: type)
                 if type == .dissimilar {
                     try writeInteractionToLog(activeToken: activeToken, associatedToken: associatedToken, type: .setDissimilar)
                 } else {
                     try writeInteractionToLog(activeToken: activeToken, associatedToken: associatedToken, type: .setSimilar)
                 }
             }
-        }  catch CSVError.parseError(let msg) {
-            print(msg)
-        }
-        catch let error as NSError {
-            print("Failed to read file")
+        }  catch {
             print(error)
         }
     }
     
-    private func writeManualInterventions(set: Set<Int>, type: Intervention) throws {
+    private func rewriteManualInterventions() throws {
         let fileURL = supportDir.appendingPathComponent(ResourceActivitySettings.ManualInterventionFile)
+        var fileStr = ""
+
+        for (set, type) in interventionMap {
+            fileStr += getManualInterventionLine(tokenSet: set, type: type)
+        }
         
+        try fileStr.write(to: fileURL, atomically: true, encoding: String.Encoding.utf8)
+    }
+    
+    private func getManualInterventionLine(tokenSet: Set<Int>, type: Intervention) -> String {
         var str = ""
         // produces ",1,8"
-        let resources = set.reduce("", { s, r in s + "," + String(r) })
+        let resources = tokenSet.reduce("", { s, r in s + "," + String(r) })
         
         switch type {
         case .similar:
@@ -210,23 +235,28 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         case .dissimilar:
             str += "d" + resources + "\n"
         }
-                
+        
+        return str
+    }
+    
+    private func appendManualIntervention(tokenSet: Set<Int>, type: Intervention) throws {
+        let fileURL = supportDir.appendingPathComponent(ResourceActivitySettings.ManualInterventionFile)
+        let str = getManualInterventionLine(tokenSet: tokenSet, type: type)
         try appendToFile(fileUrl: fileURL, string: str)
     }
     
-    private func appendToFile(fileUrl: URL, string: String) throws{
+    private func appendToFile(fileUrl: URL, string: String) throws {
         let data = string.data(using: .utf8, allowLossyConversion: false)!
-            
-        if FileManager.default.fileExists(atPath: fileUrl.path) {
-            if let fileHandle = try? FileHandle(forUpdating: fileUrl) {
-                fileHandle.seekToEndOfFile()
-                fileHandle.write(data)
-                fileHandle.closeFile()
-            } else {
-                print("failed to append to file")
-                assert(false)
-            }
+        
+        if !FileManager.default.fileExists(atPath: fileUrl.path) {
+            // creates an empty file to append to
+            try "".write(to: fileUrl, atomically: true, encoding: String.Encoding.utf8)
         }
+        
+        let fileHandle = try FileHandle(forUpdating: fileUrl)
+        fileHandle.seekToEndOfFile()
+        fileHandle.write(data)
+        fileHandle.closeFile()
     }
     
     internal func handleResourceOpened(activeResource: String, associatedResource: String, type: Interaction) {
@@ -237,8 +267,7 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         
         do {
             try writeInteractionToLog(activeToken: act, associatedToken: ast, type: .openedResource)
-        } catch let error as NSError {
-            print("Failed to read file")
+        } catch  {
             print(error)
         }
     }
@@ -247,8 +276,7 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         assert(type == .closedRecommenderWindow || type == .openedRecommenderWindow)
         do {
             try writeInteractionToLog(activeToken: nil, associatedToken: nil, type: type)
-        } catch let error as NSError {
-            print("Failed to read file")
+        } catch {
             print(error)
         }
     }
@@ -269,9 +297,13 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         case .closedRecommenderWindow:
             str += "closed recommender window"
         case .setSimilar:
-            str += "set similarity to \(String(associatedToken!))"
+            str += "set similarity for \(String(associatedToken!))"
         case .setDissimilar:
-            str += "set dissimilarity to \(String(associatedToken!))"
+            str += "set dissimilarity for \(String(associatedToken!))"
+        case .switchToSimilar:
+            str += "switch to similarity for \(String(associatedToken!))"
+        case .switchToDissimilar:
+            str += "switch to dissimilarity for \(String(associatedToken!))"
         case .openedResource:
             str += "opened resource \(String(associatedToken!))"
         }
@@ -281,9 +313,11 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         try appendToFile(fileUrl: fileURL, string: str)
     }
     
+    /// precondition: the sql table needs no manipulation. Token indexes are enumerated in order of first appearance in the database.
+    /// If the order of first appearance changes, anonymous tokens, interventions and the sequence get corrupted.
     private func writeTokenMapsFromSQLite() throws -> ([String: Int], [Int: String], [Int], [Int]) {
         let dbController = DatabaseController.getDatabaseController()
-        let rows = try dbController.executeFetchAll(query: "SELECT path FROM resource_application ORDER BY time")
+        let rows = try dbController.executeFetchAll(query: "SELECT path FROM \(ResourceActivitySettings.DbTableApplicationResource) ORDER BY time")
         
         var anonTokenMap = [String:Int]()
         var seq = ""
@@ -328,7 +362,7 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
             
             try seq.write(to: sequenceURL, atomically: true, encoding: String.Encoding.utf8)
             
-        } catch let error as NSError {
+        } catch {
             print(error)
         }
         
@@ -352,33 +386,12 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
       let letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
       return String((0..<length).map{ _ in letters.randomElement()! })
     }
-
-//    private func readTokenMaps() throws  {
-//        let fileURL = supportDir.appendingPathComponent("tokens").appendingPathExtension("txt")
-//        let fileManager = FileManager.default
-//
-//        if fileManager.fileExists(atPath: fileURL.path) {
-//
-//            let data = try String(contentsOf: fileURL)
-//            let rows = data.components(separatedBy: "\n")
-//            for row in rows {
-//                let splitted = row.split(separator: ",")
-//                let token = Int(splitted[0].trimmingCharacters(in: .whitespaces))!
-//                let path = splitted[1].trimmingCharacters(in: .whitespaces)
-//                tokenMap[path] = token
-//                invTokenMap[token] = path
-//            }
-//
-//            print(tokenMap.count, invTokenMap.count)
-//        }
-//    }
     
     private func readEmbeddingsFromDisk() throws -> [[Float]]? {
         let fileURL = supportDir.appendingPathComponent(ResourceActivitySettings.EmbeddingsFile)
         
-        if !FileManager.default.fileExists(atPath: fileURL.path) {
-            print(ResourceActivitySettings.EmbeddingsFile + " is missing")
-            return nil
+        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+            throw ResourceFileError.embeddings(ResourceActivitySettings.EmbeddingsFile + " is missing")
         }
                 
         let data = try String(contentsOf: fileURL)
@@ -392,7 +405,7 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
                 if let float = Float(cell.trimmingCharacters(in: .whitespaces)) {
                     floatColumns.append(float)
                 } else {
-                    throw CSVError.parseError("cannot cast embedding to float")
+                    throw ResourceFileError.embeddings("cannot cast to float")
                 }
             }
             embeddings.append(floatColumns)
@@ -433,9 +446,7 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
                             similarResources.append( AssociatedResource(path: path, similarity: similarity))
                         }
                         else {
-                            print("no path for token", i)
-                            print(tokenMap.values.filter { $0 == i } )
-                            // TODO
+                            // this should never happen
                             assert(false)
                         }
                     }
@@ -465,7 +476,6 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
     
     private func trackFSEvents() {
         
-        // https://github.com/eonil/FSEvents
         try? EonilFSEvents.startWatching(
             paths: [NSHomeDirectory()],
             for: ObjectIdentifier(self),

@@ -32,7 +32,6 @@ class AssociatedResource {
     }
 }
     
-// https://www.appcoda.com/macos-programming-tableview/
 class InterventionCellView: NSTableCellView {
     
     weak var delegate: InterventionDelegate?
