@@ -115,7 +115,17 @@ extension ResourceWindowController: NSTableViewDelegate, InterventionDelegate {
             }
         } else if tableColumn == tableView.tableColumns[3] {
             if let cell = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier(rawValue: CellIdentifiers.PathCell), owner: nil) as? NSTableCellView {
-                cell.textField?.stringValue = getShortPath(resourcePath: resource.path)
+                
+                if let url = URL(string: resource.path) {
+                    let pathStr = NSMutableAttributedString(string: getShortPath(resourcePath: resource.path))
+                    // strikethrough text if file doesn't exists anymore
+                    if url.isFileURL && !FileManager.default.fileExists(atPath: url.relativePath) {
+                        print(resource.path, "doesn't exist anymore")
+                        pathStr.addAttribute(NSAttributedString.Key.strikethroughStyle, value: 2, range: NSMakeRange(0, pathStr.length))
+                    }
+                    cell.textField?.attributedStringValue = pathStr
+                }
+                
                 cell.imageView?.image = getFileIcon(resourcePath: resource.path)
                 return cell
             }
@@ -208,7 +218,6 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
         // w.styleMask.remove(.resizable)
         // if let view = w.contentView {}
         
-        
         showWindow(self)
     }
     
@@ -296,15 +305,11 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
     @objc func handleTableDoubleClick() {
         let row = tableView.clickedRow
         let resource = associatedResources![row]
-        if resource.path.starts(with: "file:///") {
-            NSWorkspace.shared.openFile(resource.path)
-        } else {
-            // url
-            if let url = URL(string: resource.path) {
-                NSWorkspace.shared.open(url)
+        if let url = URL(string: resource.path) {
+            if !NSWorkspace.shared.open(url) {
+                print("could not open file", url.absoluteString)
             }
         }
-        
         delegate?.handleResourceOpened(activeResource: activeResource!, associatedResource: resource.path, type: .openedResource)
     }
     
