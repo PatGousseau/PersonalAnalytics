@@ -47,7 +47,7 @@
 	<key>STATUS_BAR_ICON</key>
 	<string>$(STATUS_BAR_ICON)</string>
 	<key>SUFeedURL</key>
-	<string>https://pluto.ifi.uzh.ch/PersonalAnalytics-MAC-master/versions/appcast.xml</string>
+	<string>https://pluto.ifi.uzh.ch/PersonalAnalytics-MAC-context/versions/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>ftdekm+o5Fq6IaZ3o1/97JSW1+UvnwxZ5G9ExMxWHD8=</string>
 	<key>SUScheduledCheckInterval</key>
