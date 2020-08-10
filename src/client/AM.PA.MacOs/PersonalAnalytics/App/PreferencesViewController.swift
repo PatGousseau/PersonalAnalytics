@@ -24,9 +24,16 @@ class PreferencesViewController: NSViewController{
     @IBOutlet weak var chromeURLTrackingStatusLabel: NSTextField!
     
     @IBOutlet weak var resourceTrackingButton: NSButton!
+    @IBOutlet weak var versionLabel: NSTextField!
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        guard let infoDict = Bundle.main.infoDictionary else {
+           fatalError("Info.plist does not exist.")
+        }
+        let version = infoDict["CFBundleVersion"] as? String ?? "???"
+        versionLabel.stringValue = "v" + version
         
         if isKeyboardTrackingEnabled() {
             keyboardTrackingStatusLabel.stringValue = "enabled"
