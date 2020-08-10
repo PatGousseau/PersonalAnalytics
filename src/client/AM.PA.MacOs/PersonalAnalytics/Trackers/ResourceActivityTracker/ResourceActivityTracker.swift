@@ -377,8 +377,16 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         var anonymousPath = ""
 
         for chunk in chunks {
-            if chunkMap[chunk] == nil {
-                chunkMap[chunk] = randomString(length: 4)
+             if chunkMap[chunk] == nil {
+                // we are not randomizing the chunk "http(s)" or "file" to make sure we
+                // retain the origin (web or fs) of the resources
+                if path.starts(with: "http") && chunk.starts(with: "http") {
+                    chunkMap[chunk] = chunk
+                } else if path.starts(with: "file") && chunk == "file" {
+                    chunkMap[chunk] = chunk
+                } else {
+                    chunkMap[chunk] = randomString(length: 4)
+                }
             }
             anonymousPath += chunkMap[chunk]!
         }
