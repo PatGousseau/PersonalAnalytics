@@ -29,11 +29,21 @@ class PreferencesViewController: NSViewController{
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        // MARK: - Setting Version Label
+        
         guard let infoDict = Bundle.main.infoDictionary else {
            fatalError("Info.plist does not exist.")
         }
-        let version = infoDict["CFBundleVersion"] as? String ?? "???"
+        
+        var version = infoDict["CFBundleVersion"] as? String ?? "???"
+        if Environment.env == "development" {
+            version += " (dev)"
+        }
+        
         versionLabel.stringValue = "v" + version
+        
+        // MARK: - Checking trackers
+        
         
         if isKeyboardTrackingEnabled() {
             keyboardTrackingStatusLabel.stringValue = "enabled"

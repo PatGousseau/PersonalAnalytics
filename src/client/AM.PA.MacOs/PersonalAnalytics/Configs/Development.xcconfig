@@ -15,3 +15,4 @@ APP_SUPPORT_DIR = PersonalAnalytics
 SQLITE_DB_NAME = PersonalAnalyticsDev.dat
 RETROSPECTIVE_PORT = 8766
 ERRORS_LOG_FILE = errorsDev.txt
+ENV = development

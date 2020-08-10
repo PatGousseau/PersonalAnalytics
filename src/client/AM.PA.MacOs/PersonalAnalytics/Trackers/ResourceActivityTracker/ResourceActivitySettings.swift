@@ -16,9 +16,16 @@ enum ResourceActivitySettings {
     static let WindowSize = 3
     static let RefreshRate = 5.0 * 60.0 // 5min
     
-    static let ManualInterventionFile = "manual-interventions.txt"
-    static let InteractionLog = "interaction-log.txt"
-    static let AnonTokenFile = "token-anonymous.txt"
-    static let TokenSequenceFile = "token-sequence.txt"
-    static let EmbeddingsFile = "embeddings.txt"
+    static func getEnvFileName(_ name: String) -> String {
+        if Environment.env == "development" {
+            return "dev-" + name
+        }
+        return name
+    }
+    
+    static var ManualInterventionFile:String = getEnvFileName("manual-interventions.txt")
+    static var InteractionLog:String = getEnvFileName("interaction-log.txt")
+    static var AnonTokenFile:String = getEnvFileName("token-anonymous.txt")
+    static var TokenSequenceFile:String = getEnvFileName("token-sequence.txt")
+    static var EmbeddingsFile:String = getEnvFileName("embeddings.txt")
 }

@@ -53,4 +53,11 @@ public enum Environment {
         }
         return port
     }()
+    
+    static let env: String = {
+           guard let port = Environment.infoDictionary["ENV"] as? String else {
+               fatalError("env shortcut not set in plist for this environment")
+           }
+           return port
+       }()
 }
