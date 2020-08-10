@@ -101,12 +101,13 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
             do {
                 self.interventionMap = try self.readManualInterventions()
                 (self.tokenMap, self.invTokenMap, self.sequence, self.freqCounts) = try self.writeTokenMapsFromSQLite()
-                self.cooccurrences = self.buildCooccurrenceMatrix(sequence: self.sequence, frequencyCounts: self.freqCounts)
                 
                 self.embeddings = try self.readEmbeddingsFromDisk()
+                print("using learned embeddings from disk")
             }
             catch ResourceFileError.embeddings(let msg) {
                 print(msg, "- using co-occurrence matrix instead")
+                self.cooccurrences = self.buildCooccurrenceMatrix(sequence: self.sequence, frequencyCounts: self.freqCounts)
                 self.embeddings = self.cooccurrences.map { $0.map { Float($0) } }
             }
             catch {
