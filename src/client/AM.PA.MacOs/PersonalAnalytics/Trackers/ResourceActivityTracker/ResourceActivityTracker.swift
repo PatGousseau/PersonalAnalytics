@@ -48,6 +48,7 @@ enum Interaction: Equatable {
     case setDissimilar
     case switchToSimilar
     case switchToDissimilar
+    case resetToNeutral
     case openedResource
     case openedRecommenderWindow
     case closedRecommenderWindow
@@ -188,7 +189,10 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
             
             if let interventionType = interventionMap[set] {
                 if type == interventionType {
-                    throw ResourceFileError.intervention("intervention for tokens \(set) already exists")
+                    interventionMap.removeValue(forKey: set)
+                    try writeInteractionToLog(activeToken: activeToken, associatedToken: associatedToken, type: .resetToNeutral)
+                    try rewriteManualInterventions()
+                    print("intervention for tokens \(set) already existed - released")
                 }
                 // user switches intervention to the opposite
                 else {
@@ -308,6 +312,8 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
             str += "switch to similarity for \(String(associatedToken!))"
         case .switchToDissimilar:
             str += "switch to dissimilarity for \(String(associatedToken!))"
+        case .resetToNeutral:
+            str += "reset intervention for \(String(associatedToken!))"
         case .openedResource:
             str += "opened resource \(String(associatedToken!))"
         }
@@ -569,7 +575,12 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
                 
                 var associatedResources = self.getSimilarResources(to: resourcePath) ?? []
                 associatedResources = self.augmentInterventionStatus(activeResourcePath: resourcePath, associatedResources: associatedResources)
-                associatedResources = associatedResources.sorted(by: { $0.similarity > $1.similarity })
+                associatedResources = associatedResources.sorted(by: {
+                    if $0.status != $1.status {
+                        return $0.status > $1.status
+                    }
+                    return $0.similarity > $1.similarity
+                })
                 
                 // do the UI stuff on the queue as advised
                 DispatchQueue.main.async { [weak self] in
@@ -583,14 +594,8 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         return associatedResources.map({ (r: AssociatedResource) -> AssociatedResource in
             let set: Set<Int> = [(tokenMap[r.path] ?? -1), tokenMap[activeResourcePath] ?? -1]
             if let intervention = interventionMap[set] {
-                if intervention == .similar {
-                    r.status = .confirmedSimilar
-                    r.similarity += 1
-                }
-                else if intervention == .dissimilar {
-                    r.status = .confirmedDissimilar
-                    r.similarity -= 1
-                }
+                if intervention == .similar { r.status = .confirmedSimilar }
+                else if intervention == .dissimilar { r.status = .confirmedDissimilar }
             }
             return r
         })

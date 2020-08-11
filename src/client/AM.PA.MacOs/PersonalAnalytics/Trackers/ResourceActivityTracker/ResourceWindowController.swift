@@ -14,10 +14,14 @@ class InterventionButton: NSButton {
     var intervention: Intervention?
 }
 
-enum InterventionStatus {
-    case confirmedDissimilar
-    case confirmedSimilar
-    case open
+enum InterventionStatus: Int, Comparable {
+    case confirmedDissimilar = -1
+    case open = 0
+    case confirmedSimilar = 1
+    
+    static func < (lhs: InterventionStatus, rhs: InterventionStatus) -> Bool {
+        return lhs.rawValue < rhs.rawValue
+    }
 }
 
 class AssociatedResource {
@@ -30,6 +34,22 @@ class AssociatedResource {
         self.status = .open
         self.similarity = similarity
     }
+    
+    func updateStatus(intervention i: Intervention) {
+        if status == .confirmedSimilar && i == .similar {
+            status = .open
+        } else if status == .confirmedSimilar && i == .dissimilar {
+            status = .confirmedDissimilar
+        } else if status == .open && i == .similar {
+            status = .confirmedSimilar
+        } else if status == .open && i == .dissimilar {
+            status = .confirmedDissimilar
+        } else if status == .confirmedDissimilar && i == .dissimilar {
+            status = .open
+        } else if status == .confirmedDissimilar && i == .similar {
+            status = .confirmedSimilar
+        }
+    }
 }
     
 class InterventionCellView: NSTableCellView {
@@ -38,13 +58,7 @@ class InterventionCellView: NSTableCellView {
     
     @IBOutlet weak var button: InterventionButton?
     @IBAction func onClick(_ sender: InterventionButton) {
-        
-        if sender.intervention! == .dissimilar {
-            sender.associatedResource!.status = .confirmedDissimilar
-        } else {
-            sender.associatedResource!.status = .confirmedSimilar
-        }
-        
+        sender.associatedResource!.updateStatus(intervention: sender.intervention!)
         self.delegate?.forwardIntervention(activeResource: sender.activeResourcePath!, associatedResource: sender.associatedResource!.path, type: sender.intervention!)
     }
 }
@@ -81,16 +95,11 @@ extension ResourceWindowController: NSTableViewDelegate, InterventionDelegate {
             return nil
         }
         
+        
         // populate data
         if tableColumn == tableView.tableColumns[0] {
                 if let cell = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier(rawValue: CellIdentifiers.SimCell), owner: nil) as? NSTableCellView {
-                    if resource.status == .confirmedDissimilar {
-                        cell.textField?.stringValue = "-"
-                    } else if resource.status == .confirmedSimilar {
-                        cell.textField?.stringValue = "+"
-                    } else if resource.status == .open {
-                        cell.textField?.stringValue = String(format: "%.2f", resource.similarity)
-                    }
+                    cell.textField?.stringValue = String(format: "%.2f", resource.similarity)
                     return cell
                 }
         } else if tableColumn == tableView.tableColumns[1] {
@@ -98,8 +107,7 @@ extension ResourceWindowController: NSTableViewDelegate, InterventionDelegate {
                 cell.button?.activeResourcePath = activeResource!
                 cell.button?.associatedResource = resource
                 cell.button?.intervention = .similar
-                // cell.button?.isEnabled = resource.status == .open
-                // cell.button?.isHidden = resource.status == .confirmedDissimilar
+                cell.button?.title = resource.status == .confirmedSimilar ? "📍" : "👍"
                 cell.delegate = self
                 return cell
             }
@@ -108,8 +116,7 @@ extension ResourceWindowController: NSTableViewDelegate, InterventionDelegate {
                 cell.button?.activeResourcePath = activeResource!
                 cell.button?.associatedResource = resource
                 cell.button?.intervention = .dissimilar
-                // cell.button?.isEnabled = resource.status == .open
-                // cell.button?.isHidden = resource.status == .confirmedSimilar
+                cell.button?.title = resource.status == .confirmedDissimilar ? "📍" : "👎"
                 cell.delegate = self
                 return cell
             }
@@ -201,7 +208,6 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
         tableView.reloadData()
         // programmatically set the selected row index to not jump back up to 0
         tableView.selectRowIndexes(NSIndexSet(index: currentActiveTableRow) as IndexSet, byExtendingSelection: false)
-
     }
         
     func show() {
