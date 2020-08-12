@@ -327,7 +327,7 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
     /// If the order of first appearance changes, anonymous tokens, interventions and the sequence get corrupted.
     private func writeTokenMapsFromSQLite() throws -> ([String: Int], [Int: String], [Int], [Int]) {
         let dbController = DatabaseController.getDatabaseController()
-        let rows = try dbController.executeFetchAll(query: "SELECT path FROM \(ResourceActivitySettings.DbTableApplicationResource) ORDER BY time")
+        let rows = try dbController.executeFetchAll(query: "SELECT path, time FROM \(ResourceActivitySettings.DbTableApplicationResource) ORDER BY time")
         
         var anonTokenMap = [String:Int]()
         var seq = ""
@@ -335,21 +335,26 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         var freqCounts = [Int]()
         var invTokenMap = [Int:String]()
         var tokenMap = [String: Int]()
-        
+        var lastTs: TimeInterval?
+                
         for row in rows {
             let path = String(row["path"]!)
             
             if path == "" { continue }
             
+            let ts = DateFormatConverter.dateStrToInterval1970(str: row["time"])
+            let intervalStr = String(format: "%.2f", ts - (lastTs ?? ts)) // equals 0 for first entry
+            lastTs = ts
+                    
             if let token = tokenMap[path] {
-                seq += String(token) + ","
+                seq += "\(intervalStr),\(token)\n"
                 intseq.append(token)
                 freqCounts[token] += 1
             } else {
                 let token = tokenMap.count
                 invTokenMap[token] = path
                 tokenMap[path] = token
-                seq += String(token) + ","
+                seq += "\(intervalStr),\(token)\n"
                 intseq.append(token)
                 freqCounts.append(1)
             }
