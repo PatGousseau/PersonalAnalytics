@@ -94,11 +94,15 @@
 		B017DECF237964C800B0EB19 /* DateFormatConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B017DECE237964C800B0EB19 /* DateFormatConverter.swift */; };
 		B0259684248E26B0005E9915 /* MenuBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0259683248E26B0005E9915 /* MenuBar.swift */; };
 		B0259685248E26B0005E9915 /* MenuBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0259683248E26B0005E9915 /* MenuBar.swift */; };
+		B02C13F924E55707004CFA15 /* WebResourcePopoverView.xib in Resources */ = {isa = PBXBuildFile; fileRef = B02C13F824E55707004CFA15 /* WebResourcePopoverView.xib */; };
+		B02C13FA24E55707004CFA15 /* WebResourcePopoverView.xib in Resources */ = {isa = PBXBuildFile; fileRef = B02C13F824E55707004CFA15 /* WebResourcePopoverView.xib */; };
 		B04D4A3824A9DE9100FF9060 /* ResourceWindow.xib in Resources */ = {isa = PBXBuildFile; fileRef = B04D4A3724A9DE9100FF9060 /* ResourceWindow.xib */; };
 		B04D4A3924A9DE9100FF9060 /* ResourceWindow.xib in Resources */ = {isa = PBXBuildFile; fileRef = B04D4A3724A9DE9100FF9060 /* ResourceWindow.xib */; };
 		B04D4A3B24A9DEBC00FF9060 /* ResourceWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B04D4A3A24A9DEBC00FF9060 /* ResourceWindowController.swift */; };
 		B04D4A3C24A9DEBC00FF9060 /* ResourceWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B04D4A3A24A9DEBC00FF9060 /* ResourceWindowController.swift */; };
 		B061EC262382F52F005AD5FD /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B061EC252382F52F005AD5FD /* WebKit.framework */; };
+		B06E917424E52DCA00C7AE66 /* WebResourcePopoverController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B06E917324E52DCA00C7AE66 /* WebResourcePopoverController.swift */; };
+		B06E917524E52DCA00C7AE66 /* WebResourcePopoverController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B06E917324E52DCA00C7AE66 /* WebResourcePopoverController.swift */; };
 		B09DC4A423E9705F00845428 /* ResourceActivityTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B09DC4A323E9705F00845428 /* ResourceActivityTracker.swift */; };
 		B09DC4A523E9705F00845428 /* ResourceActivityTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B09DC4A323E9705F00845428 /* ResourceActivityTracker.swift */; };
 		B09DC4A723E970BA00845428 /* ResourceActivityQueries.swift in Sources */ = {isa = PBXBuildFile; fileRef = B09DC4A623E970BA00845428 /* ResourceActivityQueries.swift */; };
@@ -258,9 +262,11 @@
 		B0125A0A238C251200A7F0A9 /* Production.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Production.xcconfig; sourceTree = "<group>"; };
 		B017DECE237964C800B0EB19 /* DateFormatConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFormatConverter.swift; sourceTree = "<group>"; };
 		B0259683248E26B0005E9915 /* MenuBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBar.swift; sourceTree = "<group>"; };
+		B02C13F824E55707004CFA15 /* WebResourcePopoverView.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = WebResourcePopoverView.xib; sourceTree = "<group>"; };
 		B04D4A3724A9DE9100FF9060 /* ResourceWindow.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = ResourceWindow.xib; sourceTree = "<group>"; };
 		B04D4A3A24A9DEBC00FF9060 /* ResourceWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResourceWindowController.swift; sourceTree = "<group>"; };
 		B061EC252382F52F005AD5FD /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
+		B06E917324E52DCA00C7AE66 /* WebResourcePopoverController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebResourcePopoverController.swift; sourceTree = "<group>"; };
 		B076EE832428B8D30081FDF9 /* PersonalAnalytics DevDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "PersonalAnalytics DevDebug.entitlements"; sourceTree = "<group>"; };
 		B076EE85242B54C40081FDF9 /* PersonalAnalyticsRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PersonalAnalyticsRelease.entitlements; sourceTree = "<group>"; };
 		B09DC4A323E9705F00845428 /* ResourceActivityTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResourceActivityTracker.swift; sourceTree = "<group>"; };
@@ -454,6 +460,8 @@
 				B09DC4A623E970BA00845428 /* ResourceActivityQueries.swift */,
 				B04D4A3724A9DE9100FF9060 /* ResourceWindow.xib */,
 				B04D4A3A24A9DEBC00FF9060 /* ResourceWindowController.swift */,
+				B06E917324E52DCA00C7AE66 /* WebResourcePopoverController.swift */,
+				B02C13F824E55707004CFA15 /* WebResourcePopoverView.xib */,
 				B0B08A8B24C73848009F0215 /* ResourceSimilarity.swift */,
 			);
 			path = ResourceActivityTracker;
@@ -767,6 +775,7 @@
 				B9851FDE1ED5F951002C24AF /* thumbUpGray_png in Resources */,
 				B9851FD61ED5F951002C24AF /* Resources.resx in Resources */,
 				B9851FCF1ED5F951002C24AF /* c3.min.css in Resources */,
+				B02C13F924E55707004CFA15 /* WebResourcePopoverView.xib in Resources */,
 				B9851FD71ED5F951002C24AF /* Settings.settings in Resources */,
 				B9851FD21ED5F951002C24AF /* d3.timeline.js in Resources */,
 				B9D50B861EDFC5C600145EC8 /* RetrospectiveWindow.xib in Resources */,
@@ -799,6 +808,7 @@
 				B01259F7238C169E00A7F0A9 /* thumbUpGray_png in Resources */,
 				B01259F8238C169E00A7F0A9 /* Resources.resx in Resources */,
 				B01259F9238C169E00A7F0A9 /* c3.min.css in Resources */,
+				B02C13FA24E55707004CFA15 /* WebResourcePopoverView.xib in Resources */,
 				B01259FA238C169E00A7F0A9 /* Settings.settings in Resources */,
 				B01259FB238C169E00A7F0A9 /* d3.timeline.js in Resources */,
 				B01259FC238C169E00A7F0A9 /* RetrospectiveWindow.xib in Resources */,
@@ -956,6 +966,7 @@
 				0DDEDB7C1BC61F57002B3E0D /* SummaryViewController.swift in Sources */,
 				B017DECF237964C800B0EB19 /* DateFormatConverter.swift in Sources */,
 				B9A0B7B01EDCC42F00BE6F71 /* WindowsActivityQueries.swift in Sources */,
+				B06E917424E52DCA00C7AE66 /* WebResourcePopoverController.swift in Sources */,
 				B9851FE11ED62CA9002C24AF /* Stats.swift in Sources */,
 				B0CAC0F023854A68002DBC55 /* EmotionTrackerQueries.swift in Sources */,
 				B9873A7C1EBA92DA0050E864 /* UserInputTracker.swift in Sources */,
@@ -1025,6 +1036,7 @@
 				B01259C4238C169E00A7F0A9 /* SummaryViewController.swift in Sources */,
 				B01259C5238C169E00A7F0A9 /* DateFormatConverter.swift in Sources */,
 				B01259C6238C169E00A7F0A9 /* WindowsActivityQueries.swift in Sources */,
+				B06E917524E52DCA00C7AE66 /* WebResourcePopoverController.swift in Sources */,
 				B01259C7238C169E00A7F0A9 /* Stats.swift in Sources */,
 				B01259C8238C169E00A7F0A9 /* EmotionTrackerQueries.swift in Sources */,
 				B01259C9238C169E00A7F0A9 /* UserInputTracker.swift in Sources */,

@@ -139,6 +139,16 @@ extension ResourceWindowController: NSTableViewDelegate, InterventionDelegate {
         }
         return nil
     }
+    
+    func tableViewSelectionDidChange(_ notification: Notification) {
+        if let tableRow = tableView.rowView(atRow: tableView.selectedRow, makeIfNecessary: false) {
+            let path = associatedResources![tableView.selectedRow].path
+            if path.starts(with: "http") {
+                let controller = WebResourcePopoverController(nibName: NSNib.Name(rawValue: "WebResourcePopoverView"), bundle: nil)
+                controller.showURL(path, fromView: tableRow)
+            }
+        }
+    }
 }
 
 class ResourceWindowController: NSWindowController, NSWindowDelegate {
