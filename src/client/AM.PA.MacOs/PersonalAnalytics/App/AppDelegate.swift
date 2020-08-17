@@ -160,7 +160,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSUserNotificationCenterDele
         
         createApplicationDocumentsDirectoryIfMissing()
         
-        TrackerManager.shared.register(tracker: UserInputTracker())
+        //TrackerManager.shared.register(tracker: UserInputTracker())
         TrackerManager.shared.register(tracker: WindowsActivityTracker())
         TrackerManager.shared.register(tracker: ResourceActivityTracker())
         //TrackerManager.shared.register(tracker: UserEfficiencyTracker())
