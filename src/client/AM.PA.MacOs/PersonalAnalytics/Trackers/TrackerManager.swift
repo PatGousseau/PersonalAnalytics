@@ -39,6 +39,7 @@ class TrackerManager {
     func register(tracker: ITracker){
         if(trackers[tracker.name] == nil){
             tracker.createDatabaseTablesIfNotExist()
+            tracker.updateDatabaseTables(version: -1)
             trackers[tracker.name] = tracker
         }
         else{

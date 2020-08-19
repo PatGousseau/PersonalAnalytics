@@ -21,6 +21,19 @@ class ResourceActivityQueries {
         }
     }
     
+    static func updateDatabaseTable() {
+        let dbController = DatabaseController.getDatabaseController()
+        do {
+            // drop table
+            try dbController.executeUpdate(query: "DROP TABLE \(ResourceActivitySettings.DbTableActivity);")
+            
+            // add "window" column
+            try dbController.executeUpdate(query: "ALTER TABLE \(ResourceActivitySettings.DbTableApplicationResource) ADD window TEXT NOT NULL DEFAULT '';")
+        }
+        catch {
+            // sql error can be ignored. Sqlite will throw on subsequent update calls.
+        }
+    }
     
     static func saveResourceActivity(date: Date, path: String, flags: EonilFSEventsEventFlags) {
         let dbController = DatabaseController.getDatabaseController()
@@ -45,19 +58,20 @@ class ResourceActivityQueries {
     }
     
     
-    static func saveResourceOfApplication(date: Date, path: String, process: String) {
+    static func saveResourceOfApplication(date: Date, path: String, process: String, window: String) {
         let dbController = DatabaseController.getDatabaseController()
         
         do {
             let args:StatementArguments = [
                 DateFormatConverter.dateToStr(date: date),
                 path,
-                process
+                process,
+                window
             ]
             
             let q = """
-                    INSERT INTO \(ResourceActivitySettings.DbTableApplicationResource) (time, path, process)
-                    VALUES (?, ?, ?)
+                    INSERT INTO \(ResourceActivitySettings.DbTableApplicationResource) (time, path, process, window)
+                    VALUES (?, ?, ?, ?)
                     """
             
             try dbController.executeUpdate(query: q, arguments:args)

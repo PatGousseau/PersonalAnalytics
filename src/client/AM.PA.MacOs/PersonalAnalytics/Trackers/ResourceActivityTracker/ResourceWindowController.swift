@@ -8,6 +8,39 @@
 import Foundation
 import Cocoa
 
+
+fileprivate extension URL {
+    var domain: String {
+        var path = self.absoluteString.replacingOccurrences(of: "http://www.", with: "")
+        path = path.replacingOccurrences(of: "https://www.", with: "")
+        path = path.replacingOccurrences(of: "http://", with: "")
+        path = path.replacingOccurrences(of: "https://", with: "")
+        var domain = ""
+        for char in path {
+            if char == "/" || char == "?" {
+                return domain
+            }
+            domain += String(char)
+        }
+        return domain
+    }
+    
+    var shortened: String {
+        
+        if self.isFileURL {
+            return self.relativePath.replacingOccurrences(of: NSHomeDirectory(), with: "")
+        }
+        
+        var path = self.absoluteString.replacingOccurrences(of: "http://www.", with: "")
+        path = path.replacingOccurrences(of: "https://www.", with: "")
+        path = path.replacingOccurrences(of: "http://", with: "")
+        path = path.replacingOccurrences(of: "https://", with: "")
+        return path
+    }
+}
+
+
+
 class InterventionButton: NSButton {
     var activeResourcePath: String?
     fileprivate var associatedResource: AssociatedResource?
@@ -28,11 +61,13 @@ class AssociatedResource {
     let path: String
     var status: InterventionStatus
     var similarity: Float
+    var windowName: String
     
-    init(path: String, similarity: Float) {
+    init(path: String, window: String, similarity: Float) {
         self.path = path
         self.status = .open
         self.similarity = similarity
+        self.windowName = window
     }
     
     func updateStatus(intervention i: Intervention) {
@@ -122,17 +157,7 @@ extension ResourceWindowController: NSTableViewDelegate, InterventionDelegate {
             }
         } else if tableColumn == tableView.tableColumns[3] {
             if let cell = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier(rawValue: CellIdentifiers.PathCell), owner: nil) as? NSTableCellView {
-                
-                if let url = URL(string: resource.path) {
-                    let pathStr = NSMutableAttributedString(string: getShortPath(resourcePath: resource.path))
-                    // strikethrough text if file doesn't exists anymore
-                    if url.isFileURL && !FileManager.default.fileExists(atPath: url.relativePath) {
-                        print(resource.path, "doesn't exist anymore")
-                        pathStr.addAttribute(NSAttributedString.Key.strikethroughStyle, value: 2, range: NSMakeRange(0, pathStr.length))
-                    }
-                    cell.textField?.attributedStringValue = pathStr
-                }
-                
+                cell.textField?.attributedStringValue = getResourceDescription(resource: resource)
                 cell.imageView?.image = getFileIcon(resourcePath: resource.path)
                 return cell
             }
@@ -249,20 +274,26 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
         return browserIcon
     }
     
-    private func getShortPath(resourcePath: String) -> String {
-        guard let url = URL(string: resourcePath) else {
-            return resourcePath
+    private func getResourceDescription(resource r: AssociatedResource) -> NSMutableAttributedString {
+        guard let url = URL(string: r.path) else {
+            return NSMutableAttributedString(string: r.path)
         }
         
-        if url.isFileURL {
-            return url.relativePath.replacingOccurrences(of: NSHomeDirectory(), with: "")
+        var description: NSMutableAttributedString
+        
+        if r.windowName.isEmpty {
+            description = NSMutableAttributedString(string: url.shortened)
+        } else {
+            description = NSMutableAttributedString(string: url.domain + " " + r.windowName)
+            description.addAttribute(.backgroundColor, value: NSColor.systemBlue, range: NSMakeRange(0, url.domain.count))
         }
         
-        var path = url.absoluteString.replacingOccurrences(of: "http://www.", with: "")
-        path = path.replacingOccurrences(of: "https://www.", with: "")
-        path = path.replacingOccurrences(of: "http://", with: "")
-        path = path.replacingOccurrences(of: "https://", with: "")
-        return path
+        // strikethrough text if file doesn't exists anymore
+        if url.isFileURL && !FileManager.default.fileExists(atPath: url.relativePath) {
+            description.addAttribute(.strikethroughStyle, value: 1, range: NSMakeRange(0, description.length))
+        }
+        
+        return description
     }
     
     private func turnRecommendationsOff() {
@@ -300,7 +331,7 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
         }
         
         tableView.isHidden = false
-        activeResourceTextField.stringValue = getShortPath(resourcePath: activeResourcePath)
+        activeResourceTextField.stringValue = URL(string: activeResourcePath)?.shortened ?? activeResourcePath
         
         self.associatedResources = associatedResources.filter { $0.status != .confirmedDissimilar }
         self.allAssociatedResources = associatedResources
@@ -318,6 +349,9 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
         tableView.reloadData()
     }
     
+    
+    // MARK: - Event Handling
+    
     @objc func handleTableDoubleClick() {
         let row = tableView.clickedRow
         let resource = associatedResources![row]
@@ -326,6 +360,7 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
                 print("could not open file", url.absoluteString)
             }
         }
+        
         delegate?.handleResourceOpened(activeResource: activeResource!, associatedResource: resource.path, type: .openedResource)
     }
     

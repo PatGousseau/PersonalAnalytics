@@ -59,6 +59,7 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
     var name = ResourceActivitySettings.Name
     var isRunning = true
     var windowContoller = ResourceWindowController(windowNibName: NSNib.Name(rawValue: "ResourceWindow"))
+    private var windowTitleMap = [Int: String]() // 2: window title
     private var tokenMap = [String: Int]() // www.google.com : 2
     private var invTokenMap = [Int: String]() // 2 : www.google.com
     private var chunkMap = [String: String]() // pathChunk : randomStr
@@ -327,7 +328,7 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
     /// If the order of first appearance changes, anonymous tokens, interventions and the sequence get corrupted.
     private func writeTokenMapsFromSQLite() throws -> ([String: Int], [Int: String], [Int], [Int]) {
         let dbController = DatabaseController.getDatabaseController()
-        let rows = try dbController.executeFetchAll(query: "SELECT path, time FROM \(ResourceActivitySettings.DbTableApplicationResource) ORDER BY time")
+        let rows = try dbController.executeFetchAll(query: "SELECT path, time, window FROM \(ResourceActivitySettings.DbTableApplicationResource) ORDER BY time")
         
         var anonTokenMap = [String:Int]()
         var seq = ""
@@ -339,8 +340,9 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
                 
         for row in rows {
             let path = String(row["path"]!)
+            let window = String(row["window"]!)
             
-            if path == "" { continue }
+            if path.isEmpty { continue }
             
             let ts = DateFormatConverter.dateStrToInterval1970(str: row["time"])
             let intervalStr = String(format: "%.2f", ts - (lastTs ?? ts)) // equals 0 for first entry
@@ -350,6 +352,9 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
                 seq += "\(intervalStr),\(token)\n"
                 intseq.append(token)
                 freqCounts[token] += 1
+                if !window.isEmpty {
+                    windowTitleMap[token] = window
+                }
             } else {
                 let token = tokenMap.count
                 invTokenMap[token] = path
@@ -357,6 +362,9 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
                 seq += "\(intervalStr),\(token)\n"
                 intseq.append(token)
                 freqCounts.append(1)
+                if !window.isEmpty {
+                    windowTitleMap[token] = window
+                }
             }
         }
         
@@ -466,7 +474,8 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
                     
                     if similarity > thresh {
                         if let path = invTokenMap[i] {
-                            similarResources.append( AssociatedResource(path: path, similarity: similarity))
+                            let window = windowTitleMap[i] ?? ""
+                            similarResources.append( AssociatedResource(path: path, window: window, similarity: similarity))
                         }
                         else {
                             // this should never happen
@@ -495,7 +504,9 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         ResourceActivityQueries.createDatabaseTablesIfNotExist()
     }
     
-    func updateDatabaseTables(version: Int) {}
+    func updateDatabaseTables(version: Int) {
+        ResourceActivityQueries.updateDatabaseTable()
+    }
     
     private func trackFSEvents() {
         
@@ -544,53 +555,65 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
     
     @objc func onActiveApplicationChange(_ notification: NSNotification) {
         
-        if let activeApp = notification.userInfo?["activeApplication"] as? NSRunningApplication {
-            let appName = activeApp.localizedName ?? ""
-            var resourcePath: String
-            if appName == "Google Chrome" || appName == "Safari" {
-                browserIcon = activeApp.icon
-                resourcePath = getWebsiteOfActiveBrowser(appName)
-            } else {
-                resourcePath = getResourceOfActiveApplication(activeApp: activeApp)
+        guard let activeApp = notification.userInfo?["activeApplication"] as? NSRunningApplication else {
+            return
+        }
+        
+        guard var windowName = notification.userInfo?["windowName"] as? String else {
+            return
+        }
+        
+        let appName = activeApp.localizedName ?? ""
+        var resourcePath: String
+        if appName == "Google Chrome" || appName == "Safari" {
+            browserIcon = activeApp.icon
+            (resourcePath, windowName) = getWebsiteOfActiveBrowser(appName)
+        } else {
+            resourcePath = getResourceOfActiveApplication(activeApp: activeApp)
+        }
+        
+        // "PersonalAnalytics" or "PersonalAnalytics Dev"
+        let thisAppName = Bundle.main.infoDictionary![kCFBundleNameKey as String] as! String
+        
+        if appName == thisAppName {
+            // when navigating to the ResourceWindow, the last active resource should remain.
+            return
+        }
+        
+        ResourceActivityQueries.saveResourceOfApplication(date: Date(), path: resourcePath, process: appName, window: windowName)
+        
+        if let token = tokenMap[resourcePath] {
+            if !windowName.isEmpty {
+                windowTitleMap[token] = windowName
             }
-            
-            // "PersonalAnalytics" or "PersonalAnalytics Dev"
-            let thisAppName = Bundle.main.infoDictionary![kCFBundleNameKey as String] as! String
-            
-            if appName == thisAppName {
-                // when navigating to the ResourceWindow, the last active resource should remain.
-                return 
-            }
-            
-            ResourceActivityQueries.saveResourceOfApplication(date: Date(), path: resourcePath, process: appName)
-            
-            if !windowContoller.isRecommendationEnabled {
+        }
+        
+        if !windowContoller.isRecommendationEnabled {
+            return
+        }
+        
+        // indicate loading while similarities are processed
+        windowContoller.setLoadingResource(activeAppIcon: activeApp.icon)
+        
+        // maybe something for the future if the user switches apps very quickly
+        // https://jordansmith.io/cancelling-background-tasks/
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else {
                 return
             }
             
-            // indicate loading while similarities are processed
-            windowContoller.setLoadingResource(activeAppIcon: activeApp.icon)
+            var associatedResources = self.getSimilarResources(to: resourcePath) ?? []
+            associatedResources = self.augmentInterventionStatus(activeResourcePath: resourcePath, associatedResources: associatedResources)
+            associatedResources = associatedResources.sorted(by: {
+                if $0.status != $1.status {
+                    return $0.status > $1.status
+                }
+                return $0.similarity > $1.similarity
+            })
             
-            // maybe something for the future if the user switches apps very quickly
-            // https://jordansmith.io/cancelling-background-tasks/
-            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                guard let self = self else {
-                    return
-                }
-                
-                var associatedResources = self.getSimilarResources(to: resourcePath) ?? []
-                associatedResources = self.augmentInterventionStatus(activeResourcePath: resourcePath, associatedResources: associatedResources)
-                associatedResources = associatedResources.sorted(by: {
-                    if $0.status != $1.status {
-                        return $0.status > $1.status
-                    }
-                    return $0.similarity > $1.similarity
-                })
-                
-                // do the UI stuff on the queue as advised
-                DispatchQueue.main.async { [weak self] in
-                    self?.windowContoller.setActiveResource(activeResourcePath: resourcePath, activeAppIcon: activeApp.icon, associatedResources: associatedResources, browserIcon: self?.browserIcon)
-                }
+            // do the UI stuff on the queue as advised
+            DispatchQueue.main.async { [weak self] in
+                self?.windowContoller.setActiveResource(activeResourcePath: resourcePath, activeAppIcon: activeApp.icon, associatedResources: associatedResources, browserIcon: self?.browserIcon)
             }
         }
     }
@@ -628,7 +651,7 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
     }
     
     // works with "Google Chrome" and "Safari"
-    private func getWebsiteOfActiveBrowser(_ browser: String) -> String {
+    private func getWebsiteOfActiveBrowser(_ browser: String) -> (url: String, title: String) {
         
         // helper function
         func runApplescript(_ script: String) -> String?{
@@ -648,17 +671,17 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         
         switch browser {
             case "Google Chrome":
-                // let titleReturn = runApplescript("tell application \"Google Chrome\" to return title of active tab of front window")
+                let title = runApplescript("tell application \"Google Chrome\" to return title of active tab of front window")
                 let url = runApplescript("tell application \"Google Chrome\" to return URL of active tab of front window")
-                return url ?? ""
+                return (url: url ?? "", title: title ?? "")
                 
             case "Safari":
-                //  let titleReturn = runApplescript("tell application \"Safari\" to return name of front document")
+                let title = runApplescript("tell application \"Safari\" to return name of front document")
                 let url = runApplescript("tell application \"Safari\" to return URL of front document")
-                return url ?? ""
+                return (url: url ?? "", title: title ?? "")
             default:
                 break
         }
-        return ""
+        return (url: "", title: "")
     }
 }

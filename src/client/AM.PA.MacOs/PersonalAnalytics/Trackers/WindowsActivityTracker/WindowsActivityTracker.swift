@@ -208,7 +208,7 @@ class WindowsActivityTracker: ITracker{
                     lastApplication = ActiveApplication(time: Date(), tsStart: Date(), tsEnd: Date(), window: title, process: activeAppName)
                     
                     // other trackers might be intersted when the active application changes
-                    NotificationCenter.default.post(name: NSNotification.Name(rawValue: "activeApplicationChange"), object: nil, userInfo: ["activeApplication":activeApp])
+                    NotificationCenter.default.post(name: NSNotification.Name(rawValue: "activeApplicationChange"), object: nil, userInfo: ["activeApplication": activeApp, "windowName": title])
                 }
             }
         }

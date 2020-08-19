@@ -455,8 +455,8 @@
 			isa = PBXGroup;
 			children = (
 				B09DC4AD23E979A500845428 /* EonilFSEvents */,
-				B09DC4A923E970E400845428 /* ResourceActivitySettings.swift */,
 				B09DC4A323E9705F00845428 /* ResourceActivityTracker.swift */,
+				B09DC4A923E970E400845428 /* ResourceActivitySettings.swift */,
 				B09DC4A623E970BA00845428 /* ResourceActivityQueries.swift */,
 				B04D4A3724A9DE9100FF9060 /* ResourceWindow.xib */,
 				B04D4A3A24A9DEBC00FF9060 /* ResourceWindowController.swift */,
