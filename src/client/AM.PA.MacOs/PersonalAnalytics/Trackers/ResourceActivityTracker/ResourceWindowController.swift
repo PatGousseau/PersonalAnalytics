@@ -58,16 +58,22 @@ enum InterventionStatus: Int, Comparable {
 }
 
 class AssociatedResource {
-    let path: String
-    var status: InterventionStatus
-    var similarity: Float
-    var windowName: String
+    let path: String // resource file path or web url
+    var status: InterventionStatus // user-manipulated status
+    var similarity: Float // sim score [0,1]
+    var count: Int // total freq count over the whole token sequence
+    var embedding: [Float] // the embedding vector representing this resource
+    var cooccurrenceCount: Int // co-occurrence count (sliding-window) with the active resource
+    var windowName: String // window name or website title
     
-    init(path: String, window: String, similarity: Float) {
+    init(path: String, win: String, sim: Float, emb: [Float], count: Int, cocount: Int) {
         self.path = path
         self.status = .open
-        self.similarity = similarity
-        self.windowName = window
+        self.similarity = sim
+        self.count = count
+        self.embedding = emb
+        self.windowName = win
+        self.cooccurrenceCount = cocount
     }
     
     func updateStatus(intervention i: Intervention) {
@@ -89,7 +95,7 @@ class AssociatedResource {
     
 class InterventionCellView: NSTableCellView {
     
-    weak var delegate: InterventionDelegate?
+    weak var delegate: ResourceInterventionDelegate?
     
     @IBOutlet weak var button: InterventionButton?
     @IBAction func onClick(_ sender: InterventionButton) {
@@ -98,11 +104,16 @@ class InterventionCellView: NSTableCellView {
     }
 }
 
-protocol InterventionDelegate: AnyObject {
+protocol ResourceInterventionDelegate: AnyObject {
     func forwardIntervention(activeResource: String, associatedResource: String, type: Intervention)
 }
 
-protocol ResourceControllerDelegate: AnyObject {
+protocol ResourceDebugWriterDelegate: AnyObject {
+    func writeDebugInformation(forResource: String)
+    func writeDebugCoocurrenceMatrix()
+}
+
+protocol ResourceActionDelegate: AnyObject {
     func handleIntervention(activeResource: String, associatedResource: String, type: Intervention)
     func handleResourceOpened(activeResource: String, associatedResource: String, type: Interaction)
     func handleWindowInteraction(type:Interaction)
@@ -114,7 +125,7 @@ extension ResourceWindowController: NSTableViewDataSource {
     }
 }
 
-extension ResourceWindowController: NSTableViewDelegate, InterventionDelegate {
+extension ResourceWindowController: NSTableViewDelegate, ResourceInterventionDelegate {
     
     fileprivate enum CellIdentifiers {
         static let SimCell = "SimCellID"
@@ -212,7 +223,8 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
     private(set) var isRecommendationEnabled = false
     private var browserIcon: NSImage?
     
-    var delegate: ResourceControllerDelegate?
+    var actionDelegate: ResourceActionDelegate?
+    var debugDelegate: ResourceDebugWriterDelegate?
     
     override func windowDidLoad() {
         super.windowDidLoad()
@@ -231,15 +243,15 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
             turnRecommendationsOff()
         }
         
-        delegate?.handleWindowInteraction(type: .openedRecommenderWindow)
+        actionDelegate?.handleWindowInteraction(type: .openedRecommenderWindow)
     }
     
     func windowWillClose(_ notification: Notification) {
-        delegate?.handleWindowInteraction(type: .closedRecommenderWindow)
+        actionDelegate?.handleWindowInteraction(type: .closedRecommenderWindow)
     }
     
     func forwardIntervention(activeResource: String, associatedResource: String, type: Intervention) {
-        delegate?.handleIntervention(activeResource: activeResource, associatedResource: associatedResource, type: type)
+        actionDelegate?.handleIntervention(activeResource: activeResource, associatedResource: associatedResource, type: type)
         tableView.reloadData()
         // programmatically set the selected row index to not jump back up to 0
         tableView.selectRowIndexes(NSIndexSet(index: currentActiveTableRow) as IndexSet, byExtendingSelection: false)
@@ -361,7 +373,7 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
             }
         }
         
-        delegate?.handleResourceOpened(activeResource: activeResource!, associatedResource: resource.path, type: .openedResource)
+        actionDelegate?.handleResourceOpened(activeResource: activeResource!, associatedResource: resource.path, type: .openedResource)
     }
     
     override func keyDown(with event: NSEvent) {
@@ -377,6 +389,11 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
                 resource.status = .confirmedSimilar
                 currentActiveTableRow = tableView.selectedRow
                 forwardIntervention(activeResource: activeResource!, associatedResource: resource.path, type: .similar)
+            }
+            
+            if (event.characters == "i") {
+                debugDelegate?.writeDebugInformation(forResource: activeResource!)
+                debugDelegate?.writeDebugCoocurrenceMatrix()
             }
         }
     }

@@ -6,8 +6,6 @@
 //
 
 import Foundation
-import CoreGraphics
-import Quartz
 
 // USEFUL URLS
 // https://fluffy.es/how-auto-layout-calculates-view-position-and-size/
@@ -16,6 +14,14 @@ import Quartz
 // https://www.appcoda.com/macos-programming-tableview/
 // https://stackoverflow.com/questions/54575962/why-does-nstextfield-with-usessinglelinemode-set-to-yes-has-intrinsic-content-si
 
+
+// MARK: - supporting extensions, structs, and enums
+
+fileprivate extension Array where Element: Comparable {
+    func argsort() -> [Int] {
+        return indices.sorted(by : { self[$0] > self[$1] })
+    }
+}
 
 fileprivate enum ResourceFileError: Error {
     case embeddings(String)
@@ -54,7 +60,10 @@ enum Interaction: Equatable {
     case closedRecommenderWindow
 }
 
-class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
+
+// MARK: - ResourceActivityTracker
+
+class ResourceActivityTracker: ITracker, ResourceActionDelegate, ResourceDebugWriterDelegate {
     
     var name = ResourceActivitySettings.Name
     var isRunning = true
@@ -82,7 +91,8 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(self.onActiveApplicationChange(_:)), name: NSNotification.Name(rawValue: "activeApplicationChange"), object: nil)
         
         // trackFSEvents()
-        windowContoller.delegate = self
+        windowContoller.actionDelegate = self
+        windowContoller.debugDelegate = self
         
         // when the app is started, hurry up and get the data
         refreshData(qos: .userInitiated)
@@ -103,13 +113,12 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
             do {
                 self.interventionMap = try self.readManualInterventions()
                 (self.tokenMap, self.invTokenMap, self.sequence, self.freqCounts) = try self.writeTokenMapsFromSQLite()
-                
+                self.cooccurrences = self.buildCooccurrenceMatrix(sequence: self.sequence, frequencyCounts: self.freqCounts)
                 self.embeddings = try self.readEmbeddingsFromDisk()
                 print("using learned embeddings from disk")
             }
             catch ResourceFileError.embeddings(let msg) {
                 print(msg, "- using co-occurrence matrix instead")
-                self.cooccurrences = self.buildCooccurrenceMatrix(sequence: self.sequence, frequencyCounts: self.freqCounts)
                 self.embeddings = self.cooccurrences.map { $0.map { Float($0) } }
             }
             catch {
@@ -475,7 +484,10 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
                     if similarity > thresh {
                         if let path = invTokenMap[i] {
                             let window = windowTitleMap[i] ?? ""
-                            similarResources.append( AssociatedResource(path: path, window: window, similarity: similarity))
+                            let count = freqCounts[i]
+                            let cocount = cooccurrences[i][token]
+                            let r = AssociatedResource(path: path, win: window, sim: similarity, emb: embedding, count: count, cocount: cocount)
+                            similarResources.append(r)
                         }
                         else {
                             // this should never happen
@@ -490,6 +502,64 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
         return nil
     }
     
+    func writeDebugInformation(forResource path: String) {
+        guard let embeddings = self.embeddings else {
+            fatalError("debug information not accessible without embeddings")
+        }
+        
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self = self else {
+                return
+            }
+            
+            let token = self.tokenMap[path]!
+            let sortedIndices = self.cooccurrences[token].argsort()
+            let coTotalCount = self.cooccurrences[token].reduce(0, +)
+            let totalCount = self.sequence.count
+            let fileURL = self.supportDir.appendingPathComponent(ResourceActivitySettings.getEnvDebugFileName(token: token))
+            var fileStr = "Similarity, Count, Relative Count, Co-occurrence Count, Relative Co-occurrence Count, Token, Path\n"
+            
+            for i in sortedIndices {
+                let sim = Similarity.calc(vector: embeddings[i] , other: embeddings[token])
+                let c = self.freqCounts[i]
+                let p = self.invTokenMap[i]!
+                let cc = self.cooccurrences[token][i]
+                let rc = String(format: "%.2f", Double(c)/Double(totalCount))
+                let rcc = String(format: "%.2f", Double(cc)/Double(coTotalCount))
+                fileStr += "\(sim),\(c),\(rc),\(cc),\(rcc),\(i),\(p)\n"
+            }
+            
+            do {
+                try fileStr.write(to: fileURL, atomically: true, encoding: String.Encoding.utf8)
+            } catch {
+                print(error)
+            }
+        }
+    }
+
+    func writeDebugCoocurrenceMatrix() {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self = self else {
+                return
+            }
+            
+            let fileURL = self.supportDir.appendingPathComponent(ResourceActivitySettings.CoocurrencesMatrixFile)
+            var fileStr = ""
+            
+            for (i, cooc) in self.cooccurrences.enumerated() {
+                fileStr += String(i) + ","
+                for i in cooc { fileStr += String(i) + "," }
+                fileStr += "\n"
+            }
+            
+            do {
+                try fileStr.write(to: fileURL, atomically: true, encoding: String.Encoding.utf8)
+            } catch {
+                print(error)
+            }
+        }
+    }
+
     func stop() {
         isRunning = false
         // EonilFSEvents.stopWatching(for: ObjectIdentifier(self))
@@ -509,7 +579,6 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
     }
     
     private func trackFSEvents() {
-        
         try? EonilFSEvents.startWatching(
             paths: [NSHomeDirectory()],
             for: ObjectIdentifier(self),
@@ -630,7 +699,6 @@ class ResourceActivityTracker: ITracker, ResourceControllerDelegate {
     }
     
     private func getResourceOfActiveApplication(activeApp: NSRunningApplication) -> String {
-        
         // get resouce associated with active application
         var filePath: String?
         var result = [AXUIElement]()
