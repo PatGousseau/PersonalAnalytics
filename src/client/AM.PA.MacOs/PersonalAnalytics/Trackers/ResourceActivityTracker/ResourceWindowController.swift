@@ -293,7 +293,7 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
         
         var description: NSMutableAttributedString
         
-        if r.windowName.isEmpty {
+        if r.windowName.isEmpty || url.isFileURL {
             description = NSMutableAttributedString(string: url.shortened)
         } else {
             description = NSMutableAttributedString(string: url.domain + " " + r.windowName)
