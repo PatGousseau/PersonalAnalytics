@@ -130,10 +130,10 @@ class ResourceActivityTracker: ITracker, ResourceActionDelegate, ResourceDebugWr
     }
 
     private func buildCooccurrenceMatrix(sequence seq: [Int], frequencyCounts freq: [Int]) -> [[Int]] {
+        let ws = ResourceActivitySettings.WindowSize
         var C = Array(repeating: Array(repeating: 0, count: freq.count), count: freq.count)
         
         for (i, token) in seq.enumerated() {
-            let ws = ResourceActivitySettings.WindowSize
             let window_start = max(0, i-ws)
             let window_end = min(seq.count-1, i+ws+1)
             
@@ -498,7 +498,6 @@ class ResourceActivityTracker: ITracker, ResourceActionDelegate, ResourceDebugWr
                 return similarResources
             }
         }
-        
         return nil
     }
     
@@ -527,29 +526,6 @@ class ResourceActivityTracker: ITracker, ResourceActionDelegate, ResourceDebugWr
                 let rc = String(format: "%.2f", Double(c)/Double(totalCount))
                 let rcc = String(format: "%.2f", Double(cc)/Double(coTotalCount))
                 fileStr += "\(sim),\(c),\(rc),\(cc),\(rcc),\(i),\(p)\n"
-            }
-            
-            do {
-                try fileStr.write(to: fileURL, atomically: true, encoding: String.Encoding.utf8)
-            } catch {
-                print(error)
-            }
-        }
-    }
-
-    func writeDebugCoocurrenceMatrix() {
-        DispatchQueue.global(qos: .utility).async { [weak self] in
-            guard let self = self else {
-                return
-            }
-            
-            let fileURL = self.supportDir.appendingPathComponent(ResourceActivitySettings.CoocurrencesMatrixFile)
-            var fileStr = ""
-            
-            for (i, cooc) in self.cooccurrences.enumerated() {
-                fileStr += String(i) + ","
-                for i in cooc { fileStr += String(i) + "," }
-                fileStr += "\n"
             }
             
             do {

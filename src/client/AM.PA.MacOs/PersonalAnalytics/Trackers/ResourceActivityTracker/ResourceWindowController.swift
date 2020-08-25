@@ -8,7 +8,6 @@
 import Foundation
 import Cocoa
 
-
 fileprivate extension URL {
     var domain: String {
         var path = self.absoluteString.replacingOccurrences(of: "http://www.", with: "")
@@ -38,8 +37,6 @@ fileprivate extension URL {
         return path
     }
 }
-
-
 
 class InterventionButton: NSButton {
     var activeResourcePath: String?
@@ -110,7 +107,6 @@ protocol ResourceInterventionDelegate: AnyObject {
 
 protocol ResourceDebugWriterDelegate: AnyObject {
     func writeDebugInformation(forResource: String)
-    func writeDebugCoocurrenceMatrix()
 }
 
 protocol ResourceActionDelegate: AnyObject {
@@ -393,7 +389,6 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
             
             if (event.characters == "i") {
                 debugDelegate?.writeDebugInformation(forResource: activeResource!)
-                debugDelegate?.writeDebugCoocurrenceMatrix()
             }
         }
     }

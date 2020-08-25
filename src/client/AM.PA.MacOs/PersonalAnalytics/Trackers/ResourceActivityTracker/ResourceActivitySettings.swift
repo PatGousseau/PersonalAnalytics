@@ -27,7 +27,6 @@ enum ResourceActivitySettings {
         getEnvFileName("debug-\(token).csv")
     }
     
-    static var CoocurrencesMatrixFile = getEnvFileName("co-occurrences.csv")
     static var ManualInterventionFile = getEnvFileName("manual-interventions.txt")
     static var InteractionLog = getEnvFileName("interaction-log.txt")
     static var AnonTokenFile = getEnvFileName("token-anonymous.txt")
