@@ -8,7 +8,7 @@
 import Foundation
 import Cocoa
 
-fileprivate extension URL {
+extension URL {
     var domain: String {
         var path = self.absoluteString.replacingOccurrences(of: "http://www.", with: "")
         path = path.replacingOccurrences(of: "https://www.", with: "")
@@ -54,7 +54,7 @@ enum InterventionStatus: Int, Comparable {
     }
 }
 
-class AssociatedResource {
+class AssociatedResource: Hashable {
     let path: String // resource file path or web url
     var status: InterventionStatus // user-manipulated status
     var similarity: Float // sim score [0,1]
@@ -88,6 +88,14 @@ class AssociatedResource {
             status = .confirmedSimilar
         }
     }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(path)
+    }
+    
+    static func == (lhs: AssociatedResource, rhs: AssociatedResource) -> Bool {
+        return lhs.path == rhs.path
+    }
 }
     
 class InterventionCellView: NSTableCellView {
@@ -111,6 +119,7 @@ protocol ResourceDebugWriterDelegate: AnyObject {
 
 protocol ResourceActionDelegate: AnyObject {
     func handleIntervention(activeResource: String, associatedResource: String, type: Intervention)
+    func handleInterventionAndUpdate(activeResource: String, associatedResource: String, type: Intervention)
     func handleResourceOpened(activeResource: String, associatedResource: String, type: Interaction)
     func handleWindowInteraction(type:Interaction)
 }
@@ -183,10 +192,11 @@ extension ResourceWindowController: NSTableViewDelegate, ResourceInterventionDel
     }
 }
 
-class ResourceWindowController: NSWindowController, NSWindowDelegate {
+class ResourceWindowController: NSWindowController, NSWindowDelegate, RecentlyUsedDelegate {
     
     // MARK: IBOutlets
     @IBOutlet weak var tableView: NSTableView!
+    @IBOutlet weak var recentlyUsedStack: NSStackView!
     @IBOutlet weak var activeResourceTextField: NSTextFieldCell!
     @IBOutlet weak var activeAppIcon: NSImageView!
     @IBOutlet weak var toggleOnOffCheckbox: NSButton!
@@ -218,6 +228,8 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
     private var currentActiveTableRow: Int = 0
     private(set) var isRecommendationEnabled = false
     private var browserIcon: NSImage?
+    // https://stackoverflow.com/questions/37956541/ibaction-not-getting-called-from-subviews-button-click
+    private var rowControllers = [ResourceStackItemViewController]()
     
     var actionDelegate: ResourceActionDelegate?
     var debugDelegate: ResourceDebugWriterDelegate?
@@ -251,6 +263,11 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
         tableView.reloadData()
         // programmatically set the selected row index to not jump back up to 0
         tableView.selectRowIndexes(NSIndexSet(index: currentActiveTableRow) as IndexSet, byExtendingSelection: false)
+    }
+    
+    func forwardKeepIntervention(forResource: String) {
+        actionDelegate?.handleInterventionAndUpdate(activeResource: activeResource!, associatedResource: forResource, type: .similar)
+        tableView.reloadData()
     }
         
     func show() {
@@ -326,6 +343,29 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate {
         toggleOnOffCheckbox.title = "disable"
         
         UserDefaults.standard.set(true, forKey: "resourceRecommendationsEnabled")
+    }
+        
+    func setRecentlyUsedResources(_ resources: [String]) {
+        recentlyUsedStack.arrangedSubviews.forEach {
+            $0.removeFromSuperview()
+        }
+        
+        rowControllers.removeAll()
+        
+        for r in resources {
+            let controller = ResourceStackItemViewController(nibName: NSNib.Name(rawValue: "ResourceStackItem"), bundle: nil)
+            controller.resourcePath = r
+            controller.delegate = self
+            rowControllers.append(controller)
+            
+            let v = controller.view
+            
+            v.widthAnchor.constraint(equalToConstant: recentlyUsedStack.frame.width).isActive = true
+            v.heightAnchor.constraint(equalToConstant: v.frame.height).isActive = true
+            recentlyUsedStack.backgroundColor = .green
+            v.backgroundColor = .red
+            recentlyUsedStack.addArrangedSubview(v)
+        }
     }
             
     func setActiveResource(activeResourcePath: String, activeAppIcon icon: NSImage?, associatedResources: [AssociatedResource], browserIcon: NSImage?) {

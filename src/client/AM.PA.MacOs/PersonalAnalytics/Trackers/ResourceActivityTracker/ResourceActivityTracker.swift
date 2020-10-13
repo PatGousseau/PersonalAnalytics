@@ -17,6 +17,41 @@ import Foundation
 
 // MARK: - supporting extensions, structs, and enums
 
+fileprivate class RecentlyUsedQueue {
+    
+    private var queue = [String]()
+    private var lastActiveResource = ""
+    
+    func update(activeResource res: String) -> [String] {
+        
+//        print(res)
+//        print(lastActiveResource)
+//        print("----")
+        
+        if queue.contains(lastActiveResource) {
+            queue = queue.filter { $0 != lastActiveResource }
+        }
+        
+        if queue.contains(res) {
+            queue = queue.filter { $0 != res }
+        }
+        
+        if !lastActiveResource.isEmpty && lastActiveResource != res {
+            queue.append(lastActiveResource)
+        }
+        
+        if queue.count >= 5 {
+            queue.removeFirst()
+        }
+        
+        if !res.isEmpty {
+            lastActiveResource = res
+        }
+        
+        return Array(queue.reversed())
+    }
+}
+
 fileprivate extension Array where Element: Comparable {
     func argsort() -> [Int] {
         return indices.sorted(by : { self[$0] > self[$1] })
@@ -73,11 +108,13 @@ class ResourceActivityTracker: ITracker, ResourceActionDelegate, ResourceDebugWr
     private var invTokenMap = [Int: String]() // 2 : www.google.com
     private var chunkMap = [String: String]() // pathChunk : randomStr
     private var interventionMap = [Set<Int>: Intervention]()  // {token1, token2}: 0 (dissimilar)
+    private var interventionConnections = [Int: Set<Int>]() // token1 : {token2, token3}
     private var embeddings: [[Float]]? // embeddings learned with resource2vec or from co-occurrence matrix
     private var sequence = [Int]() // sequence of tokens
     private var freqCounts = [Int]() // #occurences of a token in the sequence
     private var cooccurrences = [[Int]]() // co-occurrence matrix
     private var simCache = [Set<Int>: CachedSimScore]()
+    private var recentlyUsedQueue = RecentlyUsedQueue()
     
     private var browserIcon: NSImage? // TODO: this is a hack here, can we get the default browser app icon?
     
@@ -93,6 +130,8 @@ class ResourceActivityTracker: ITracker, ResourceActionDelegate, ResourceDebugWr
         // trackFSEvents()
         windowContoller.actionDelegate = self
         windowContoller.debugDelegate = self
+        
+        windowContoller.show()
         
         // when the app is started, hurry up and get the data
         refreshData(qos: .userInitiated)
@@ -111,7 +150,7 @@ class ResourceActivityTracker: ITracker, ResourceActionDelegate, ResourceDebugWr
             }
             
             do {
-                self.interventionMap = try self.readManualInterventions()
+                (self.interventionMap, self.interventionConnections) = try self.readManualInterventions()
                 (self.tokenMap, self.invTokenMap, self.sequence, self.freqCounts) = try self.writeTokenMapsFromSQLite()
                 self.cooccurrences = self.buildCooccurrenceMatrix(sequence: self.sequence, frequencyCounts: self.freqCounts)
                 self.embeddings = try self.readEmbeddingsFromDisk()
@@ -146,9 +185,10 @@ class ResourceActivityTracker: ITracker, ResourceActionDelegate, ResourceDebugWr
         return C
     }
         
-    private func readManualInterventions() throws -> [Set<Int>: Intervention] {
+    private func readManualInterventions() throws -> ([Set<Int>: Intervention], [Int: Set<Int>]) {
         let fileURL = supportDir.appendingPathComponent(ResourceActivitySettings.ManualInterventionFile)
         var map = [Set<Int>: Intervention]()  // {token1, token2}: 0 (dissim)
+        var connections = [Int: Set<Int>]()
         
         if FileManager.default.fileExists(atPath: fileURL.path) {
                         
@@ -184,10 +224,28 @@ class ResourceActivityTracker: ITracker, ResourceActionDelegate, ResourceDebugWr
                 }
                 
                 map[set] = intervention
+                
+                if connections[t1] != nil {
+                    connections[t1]?.insert(t2)
+                } else {
+                    connections[t1] = [t2]
+                }
+                
+                if connections[t2] != nil {
+                    connections[t2]?.insert(t1)
+                } else {
+                    connections[t2] = [t1]
+                }
             }
         }
         
-        return map
+        return (map, connections)
+    }
+    
+    internal func handleInterventionAndUpdate(activeResource: String, associatedResource: String, type: Intervention) {
+        print(activeResource, associatedResource)
+        handleIntervention(activeResource: activeResource, associatedResource: associatedResource, type: type)
+        update(resourcePath: activeResource, icon: nil)
     }
 
     internal func handleIntervention(activeResource: String, associatedResource: String, type: Intervention) {
@@ -200,6 +258,8 @@ class ResourceActivityTracker: ITracker, ResourceActionDelegate, ResourceDebugWr
             if let interventionType = interventionMap[set] {
                 if type == interventionType {
                     interventionMap.removeValue(forKey: set)
+                    interventionConnections[activeToken]!.remove(associatedToken)
+                    interventionConnections[associatedToken]!.remove(activeToken)
                     try writeInteractionToLog(activeToken: activeToken, associatedToken: associatedToken, type: .resetToNeutral)
                     try rewriteManualInterventions()
                     print("intervention for tokens \(set) already existed - released")
@@ -218,7 +278,11 @@ class ResourceActivityTracker: ITracker, ResourceActionDelegate, ResourceDebugWr
             }
             // user sets a new intervention
             else {
+                // update auxilary maps
+                interventionConnections[activeToken] = [associatedToken]
+                interventionConnections[associatedToken] = [activeToken]
                 interventionMap[set] = type
+                // persist
                 try appendManualIntervention(tokenSet: set, type: type)
                 if type == .dissimilar {
                     try writeInteractionToLog(activeToken: activeToken, associatedToken: associatedToken, type: .setDissimilar)
@@ -638,8 +702,38 @@ class ResourceActivityTracker: ITracker, ResourceActionDelegate, ResourceDebugWr
         }
         
         // indicate loading while similarities are processed
-        windowContoller.setLoadingResource(activeAppIcon: activeApp.icon)
+        let icon = activeApp.icon
+        windowContoller.setLoadingResource(activeAppIcon: icon)
+        update(resourcePath: resourcePath, icon: icon)
+    }
+    
+    
+    func includeManuallySetSimilar(to activeResource: String, resources: [AssociatedResource]) -> [AssociatedResource] {
+        let activeToken = tokenMap[activeResource] ?? -1
+        guard let connections = self.interventionConnections[activeToken] else {
+            return resources
+        }
         
+        var resourceSet = Set(resources)
+        for token in connections {
+            if interventionMap[[activeToken, token]] != nil {
+                let path = invTokenMap[token]!
+                let activeEmbedding = embeddings![activeToken]
+                let embedding = embeddings![token]
+                let window = windowTitleMap[token] ?? ""
+                let count = freqCounts[token]
+                let cocount = cooccurrences[token][activeToken]
+                let similarity = Similarity.calc(vector: embedding, other: activeEmbedding)
+                let r = AssociatedResource(path: path, win: window, sim: similarity, emb: embedding, count: count, cocount: cocount)
+                resourceSet.insert(r)
+            }
+        }
+        
+        // TODO: schedule update if token not exist.
+        return Array(resourceSet)
+    }
+    
+    private func update(resourcePath: String, icon: NSImage?) {
         // maybe something for the future if the user switches apps very quickly
         // https://jordansmith.io/cancelling-background-tasks/
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -647,7 +741,9 @@ class ResourceActivityTracker: ITracker, ResourceActionDelegate, ResourceDebugWr
                 return
             }
             
+            let recentlyUsedResources = self.recentlyUsedQueue.update(activeResource: resourcePath)
             var associatedResources = self.getSimilarResources(to: resourcePath) ?? []
+            associatedResources = self.includeManuallySetSimilar(to: resourcePath, resources: associatedResources)
             associatedResources = self.augmentInterventionStatus(activeResourcePath: resourcePath, associatedResources: associatedResources)
             associatedResources = associatedResources.sorted(by: {
                 if $0.status != $1.status {
@@ -658,7 +754,9 @@ class ResourceActivityTracker: ITracker, ResourceActionDelegate, ResourceDebugWr
             
             // do the UI stuff on the queue as advised
             DispatchQueue.main.async { [weak self] in
-                self?.windowContoller.setActiveResource(activeResourcePath: resourcePath, activeAppIcon: activeApp.icon, associatedResources: associatedResources, browserIcon: self?.browserIcon)
+                self?.windowContoller.setActiveResource(activeResourcePath: resourcePath, activeAppIcon: icon, associatedResources: associatedResources, browserIcon: self?.browserIcon)
+                
+                self?.windowContoller.setRecentlyUsedResources(recentlyUsedResources)
             }
         }
     }
