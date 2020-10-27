@@ -23,11 +23,7 @@ fileprivate class RecentlyUsedQueue {
     private var lastActiveResource = ""
     
     func update(activeResource res: String) -> [String] {
-        
-//        print(res)
-//        print(lastActiveResource)
-//        print("----")
-        
+                
         if queue.contains(lastActiveResource) {
             queue = queue.filter { $0 != lastActiveResource }
         }
@@ -40,7 +36,7 @@ fileprivate class RecentlyUsedQueue {
             queue.append(lastActiveResource)
         }
         
-        if queue.count >= 5 {
+        if queue.count >= ResourceActivitySettings.RecentlyUsedQueueSize {
             queue.removeFirst()
         }
         
@@ -48,6 +44,10 @@ fileprivate class RecentlyUsedQueue {
             lastActiveResource = res
         }
         
+        return Array(queue.reversed())
+    }
+    
+    func getArray() -> [String] {
         return Array(queue.reversed())
     }
 }
@@ -98,7 +98,7 @@ enum Interaction: Equatable {
 
 // MARK: - ResourceActivityTracker
 
-class ResourceActivityTracker: ITracker, ResourceActionDelegate, ResourceDebugWriterDelegate {
+class ResourceActivityTracker: ITracker, ResourceActionDelegate, ResourceDebugWriterDelegate, ResourceServerDelegate {
     
     var name = ResourceActivitySettings.Name
     var isRunning = true
@@ -140,6 +140,10 @@ class ResourceActivityTracker: ITracker, ResourceActionDelegate, ResourceDebugWr
         Timer.scheduledTimer(withTimeInterval: ResourceActivitySettings.RefreshRate, repeats: true) { _ in
             self.refreshData(qos: .utility)
         }
+        
+        // starts the server 
+        let server = ResourceServer()
+        server.delegate = self
     }
     
     // this happens off the main queue
@@ -825,5 +829,25 @@ class ResourceActivityTracker: ITracker, ResourceActionDelegate, ResourceDebugWr
                 break
         }
         return (url: "", title: "")
+    }
+
+    func getRecentlyUsedResources() -> [String] {
+        return recentlyUsedQueue.getArray()
+    }
+    
+    func getContextResources(path: String) -> [AssociatedResource] {
+        // TODO off the main queue??
+        
+        var associatedResources = self.getSimilarResources(to: path) ?? []
+        // associatedResources = self.includeManuallySetSimilar(to: path, resources: associatedResources)
+        // associatedResources = self.augmentInterventionStatus(activepath: path, associatedResources: associatedResources)
+        associatedResources = associatedResources.sorted(by: {
+            if $0.status != $1.status {
+                return $0.status > $1.status
+            }
+            return $0.similarity > $1.similarity
+        })
+        
+        return associatedResources
     }
 }

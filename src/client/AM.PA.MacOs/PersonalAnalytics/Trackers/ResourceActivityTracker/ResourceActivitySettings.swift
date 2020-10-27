@@ -15,6 +15,7 @@ enum ResourceActivitySettings {
     static let SimilarityTreshold:Float = 0.6
     static let WindowSize = 3
     static let RefreshRate = 5.0 * 60.0 // 5min
+    static let RecentlyUsedQueueSize = 10
     
     private static func getEnvFileName(_ name: String) -> String {
         if Environment.env == "development" {

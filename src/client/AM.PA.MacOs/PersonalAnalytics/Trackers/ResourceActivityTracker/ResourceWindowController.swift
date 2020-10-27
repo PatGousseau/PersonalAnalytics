@@ -362,8 +362,6 @@ class ResourceWindowController: NSWindowController, NSWindowDelegate, RecentlyUs
             
             v.widthAnchor.constraint(equalToConstant: recentlyUsedStack.frame.width).isActive = true
             v.heightAnchor.constraint(equalToConstant: v.frame.height).isActive = true
-            recentlyUsedStack.backgroundColor = .green
-            v.backgroundColor = .red
             recentlyUsedStack.addArrangedSubview(v)
         }
     }
