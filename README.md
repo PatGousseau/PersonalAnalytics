@@ -11,7 +11,7 @@ Anyone is welcome to contribute to PersonalAnalytics by extending it with new tr
 ## Further Information
 - [Privacy information](https://github.com/HASE-UZH/PersonalAnalytics/blob/dev-am/documentation/PRIVACY.md)
 - [Architecture information](https://github.com/HASE-UZH/PersonalAnalytics/blob/dev-am/documentation/ARCHITECTURE.md)
-- [FAQ](https://github.com/HASE-UZH/PersonalAnalytics/blob/dev-am/documentation/FAQ.md)
+- [FAQ](https://github.com/PatGousseau/PersonalAnalytics/blob/619a9e0d85eddde8d9ea136e7be90530975cfbe5/documentation/FAQ.md)
 - Questions? contact [Dr. André Meyer](mailto:ameyer@ifi.uzh.ch)
 
 
